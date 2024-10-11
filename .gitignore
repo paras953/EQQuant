@@ -1,0 +1,51 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore dependency directories
+node_modules/
+vendor/
+
+# Ignore build directories and output
+dist/
+build/
+out/
+
+# Ignore IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Ignore environment and secret files
+.env
+.env.local
+.env.*.local
+
+# Ignore OS generated files
+*.DS_Store
+*.Spotlight-V100
+*.Trashes
+
+# Ignore Python virtual environment
+venv/
+__pycache__/
+*.py[cod]
+
+# Ignore compiled code
+*.class
+*.o
+*.so
+
+# Ignore package lock files (if using npm or yarn)
+package-lock.json
+yarn.lock
+
+# Ignore macOS generated files
+*.DS_Store
+
