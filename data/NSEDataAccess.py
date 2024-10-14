@@ -9,7 +9,7 @@ import re
 import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
-from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH
+from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns
 
 
 # TODO : add basic price cleaning function
@@ -124,22 +124,25 @@ class NSEMasterDataAccess():
 
         prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
         prices_data = pd.read_pickle(prices_pkl_path)
-        rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': 'High', 'CH_TRADE_LOW_PRICE': 'Low',
-                       'CH_CLOSING_PRICE': 'Close',
-                       'CH_OPENING_PRICE': 'Open', 'CH_LAST_TRADED_PRICE': 'LastTradedPrice',
-                       'CH_TOTAL_TRADES': 'Trades', 'CH_TOT_TRADED_QTY': 'Volume'}
+        rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value, 'CH_TRADE_LOW_PRICE': Columns.LOW.value,
+                       'CH_CLOSING_PRICE': Columns.CLOSE.value,
+                       'CH_OPENING_PRICE': Columns.OPEN.value, 'CH_LAST_TRADED_PRICE': Columns.LTP.value,
+                       'CH_TOTAL_TRADES': Columns.TRADES.value, 'CH_TOT_TRADED_QTY': Columns.VOLUME.value}
         prices_data = prices_data.rename(columns=rename_dict)
 
         prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data, symbol=symbol,
-                                                               prices_columns=['Open', 'High', 'Low', 'Close', 'VWAP',
-                                                                               'LastTradedPrice'])
+                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+                                                                               Columns.LOW.value,Columns.CLOSE.value,
+                                                                               Columns.LTP.value,Columns.VWAP.value])
         prices_data = self.adjust_prices_for_corporate_actions(action_type='bonus', prices=prices_data, symbol=symbol,
-                                                               prices_columns=['Open', 'High', 'Low', 'Close', 'VWAP',
-                                                                               'LastTradedPrice'])
+                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+                                                                               Columns.LOW.value,Columns.CLOSE.value,
+                                                                               Columns.LTP.value,Columns.VWAP.value])
         prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
                                                                symbol=symbol,
-                                                               prices_columns=['Open', 'High', 'Low', 'Close', 'VWAP',
-                                                                               'LastTradedPrice'])
+                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+                                                                               Columns.LOW.value,Columns.CLOSE.value,
+                                                                               Columns.LTP.value,Columns.VWAP.value])
         prices_data = prices_data.truncate(start_date, end_date)
         return prices_data
 
@@ -259,7 +262,8 @@ class NSEMasterDataAccess():
                     prices.loc[mask, prices_columns] *= row['price_multiplier']
                     prices.loc[mask, volume] /= row['price_multiplier']
         else:
-            prices['AdjClose'] = prices['Close'] * split_data['price_multiplier']
+            for cols in prices_columns:
+                prices[f'Adj{cols}'] = prices[cols] * split_data['price_multiplier']
         return prices
 
     def get_index_constituents(self, index_name: str) -> List[str]:
@@ -276,7 +280,7 @@ if __name__ == '__main__':
     ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50') # downloading nifty 50 stocks
     ticker_list = sorted(ticker_list)
     # ticker_list = ['RELIANCE']
-    year_list = [i for i in range(2012,2017)]
+    year_list = [i for i in range(2022,2025)]
     for ticker in ticker_list:
         for year in year_list:
             prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
