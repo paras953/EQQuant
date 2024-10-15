@@ -1,7 +1,7 @@
 from enum import Enum
 
-PRICES_PKL_PATH = 'C:/Users/paras/additional_data/'
-TICKER_METADATA_PATH = 'C:/Users/paras/additional_data/ticker_metadata_2024-10-08.csv'
+PRICES_PKL_PATH = 'C:/Users/paras/PycharmProjects/EQQuant/additional_data/'
+TICKER_METADATA_PATH = 'C:/Users/paras/PycharmProjects/EQQuant/additional_data/ticker_metadata_2024-10-08.csv'
 # just make sure to update these files everyday
 #TODO : try to auto download these files from NSE website
 # src : https://www.nseindia.com/companies-listing/corporate-filings-actions
