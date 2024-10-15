@@ -19,7 +19,7 @@ def true_range(prices: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
                                                           f'prev_{Columns.ADJ_CLOSE.value}'])), axis=1)
     return prices[['true_range']], 'true_range'
 
-
+# WIP
 def directional_movement(prices: pd.DataFrame,window:int) -> Tuple[pd.DataFrame, str]:
     """
     :param prices: a prices df having AdjHigh, AdjLow, AdjClose
