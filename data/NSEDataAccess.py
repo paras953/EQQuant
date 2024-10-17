@@ -10,7 +10,7 @@ import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
 from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns
-
+import yfinance as yf
 
 # TODO : add basic price cleaning function
 class NSEMasterDataAccess():
@@ -124,6 +124,9 @@ class NSEMasterDataAccess():
 
         prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
         prices_data = pd.read_pickle(prices_pkl_path)
+        prices_data["updatedAt"] = pd.to_datetime(prices_data["updatedAt"])
+        prices_data = prices_data.sort_values(["Date", "updatedAt"])
+        prices_data = prices_data[~prices_data.index.duplicated(keep='last')]
         rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value, 'CH_TRADE_LOW_PRICE': Columns.LOW.value,
                        'CH_CLOSING_PRICE': Columns.CLOSE.value,
                        'CH_OPENING_PRICE': Columns.OPEN.value, 'CH_LAST_TRADED_PRICE': Columns.LTP.value,
@@ -134,10 +137,10 @@ class NSEMasterDataAccess():
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
                                                                                Columns.LOW.value,Columns.CLOSE.value,
                                                                                Columns.LTP.value,Columns.VWAP.value])
-        prices_data = self.adjust_prices_for_corporate_actions(action_type='bonus', prices=prices_data, symbol=symbol,
-                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
+        # prices_data = self.adjust_prices_for_corporate_actions(action_type='bonus', prices=prices_data, symbol=symbol,
+        #                                                        prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+        #                                                                        Columns.LOW.value,Columns.CLOSE.value,
+        #                                                                        Columns.LTP.value,Columns.VWAP.value])
         prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
                                                                symbol=symbol,
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
@@ -164,7 +167,7 @@ class NSEMasterDataAccess():
 
     def _extract_bonus_multiplier(self, description: str):
         # Regular expression pattern to extract the two numbers in the Bonus X:Y format
-        match = re.search(r'Bonus\s+(\d+):(\d+)', description)
+        match = re.search(r'Bonus\s+(\d+)\s*:\s*(\d+)', description)
 
         if match:
             # Extract the two numbers (bonus and existing shares)
@@ -201,32 +204,38 @@ class NSEMasterDataAccess():
             raise NotImplementedError(
                 f"Only implemented for action_type -> split,bonus or dividend you passed {action_type}")
 
-        corporate_actions_df = pd.read_csv(CORPORATE_ACTIONS_PATH)
-        corporate_actions_df = corporate_actions_df.dropna(subset=['FACE VALUE'])
+        # corporate_actions_df = pd.read_csv(CORPORATE_ACTIONS_PATH)
+        # corporate_actions_df = corporate_actions_df.dropna(subset=['FACE VALUE'])
+        #
+        # if action_type == 'split':
+        #     stock_split_df = corporate_actions_df[
+        #         corporate_actions_df['PURPOSE'].str.contains('Face Value Split', case=False, na=False)]
+        # elif action_type == 'bonus':
+        #     stock_split_df = corporate_actions_df[
+        #         corporate_actions_df['PURPOSE'].str.contains('Bonus', case=False, na=False)]
+        # else:
+        #     dividend_df = pd.read_csv(DIVIDEND_PATH)
+        #     dividend_df = dividend_df.dropna(subset=['FACE VALUE'])
+        #     stock_split_df = dividend_df[dividend_df['PURPOSE'].str.contains('Dividend', case=False, na=False)]
+        #
+        # stock_split_df = stock_split_df[stock_split_df['SYMBOL'] == symbol]
+        # stock_split_df = stock_split_df.set_index('EX-DATE')
+        # stock_split_df.index = pd.to_datetime(stock_split_df.index)
+        # stock_split_df = stock_split_df.sort_index()
 
         if action_type == 'split':
-            stock_split_df = corporate_actions_df[
-                corporate_actions_df['PURPOSE'].str.contains('Face Value Split', case=False, na=False)]
-        elif action_type == 'bonus':
-            stock_split_df = corporate_actions_df[
-                corporate_actions_df['PURPOSE'].str.contains('Bonus', case=False, na=False)]
+            split_info = yf.Ticker(symbol + ".NS").splits
+            stock_split_df = pd.DataFrame(data = split_info)
+            stock_split_df.columns = ["price_multiplier"]
+            stock_split_df.index = stock_split_df.index.date.astype("datetime64[ns]")
+            stock_split_df.index.name = 'EX-DATE'
         else:
-            dividend_df = pd.read_csv(DIVIDEND_PATH)
-            dividend_df = dividend_df.dropna(subset=['FACE VALUE'])
-            stock_split_df = dividend_df[dividend_df['PURPOSE'].str.contains('Dividend', case=False, na=False)]
-
-        stock_split_df = stock_split_df[stock_split_df['SYMBOL'] == symbol]
-        stock_split_df = stock_split_df.set_index('EX-DATE')
-        stock_split_df.index = pd.to_datetime(stock_split_df.index)
-        stock_split_df = stock_split_df.sort_index()
-
-        if action_type == 'split':
-            stock_split_df['price_multiplier'] = stock_split_df['PURPOSE'].apply(self._extract_split_ratio)
-        elif action_type == 'bonus':
-            stock_split_df['price_multiplier'] = stock_split_df['PURPOSE'].apply(self._extract_bonus_multiplier)
-        else:
-            stock_split_df['dividend_amount'] = stock_split_df.apply(
-                lambda x: self._extract_dividend_amount(x['PURPOSE'], x['FACE VALUE']), axis=1)
+            split_info = yf.Ticker(symbol + ".NS").dividends
+            stock_split_df = pd.DataFrame(data=split_info)
+            stock_split_df.columns = ["dividend_amount"]
+            stock_split_df.index = stock_split_df.index.date.astype("datetime64[ns]")
+            stock_split_df.index.name = 'EX-DATE'
+            stock_split_df = stock_split_df.groupby("EX-DATE").sum()
             prices = prices.join(stock_split_df[['dividend_amount']], how='left')
             prices['dividend_amount'] = prices['dividend_amount'].shift(-1)
             prices_before_ex_date = prices[~prices['dividend_amount'].isna()]
@@ -263,6 +272,7 @@ class NSEMasterDataAccess():
                     prices.loc[mask, volume] /= row['price_multiplier']
         else:
             for cols in prices_columns:
+                print(f"Currently Adjusting for {cols}")
                 prices[f'Adj{cols}'] = prices[cols] * split_data['price_multiplier']
         return prices
 
