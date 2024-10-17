@@ -9,7 +9,7 @@ import re
 import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
-from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns
+from utils.config import PRICES_PKL_PATH, BONUS_NIFTY50, DIVIDEND_NIFTY50, SPLIT_NIFTY50, Columns, GOOD_DATE_MAP
 
 
 # TODO : add basic price cleaning function
@@ -36,7 +36,7 @@ class NSEMasterDataAccess():
         return symbol_df
 
     @timer
-    def extractTickerMasterData(self, index_name: str = None,save_metadata:bool=False) -> pd.DataFrame:
+    def extractTickerMasterData(self, index_name: str = None, save_metadata: bool = False) -> pd.DataFrame:
 
         index_data = nsefetch('https://www.nseindia.com/api/equity-master')
         data_dict = defaultdict(list)
@@ -91,7 +91,7 @@ class NSEMasterDataAccess():
 
         if start_date < end_date:
             prices_data = equity_history(symbol, 'EQ', start_date_str, end_date_str)
-            if len(prices_data)==0:
+            if len(prices_data) == 0:
                 print(f'No data found for {symbol} between {start_date_str} and {end_date_str}')
                 # just return an empty dataframe
                 return pd.DataFrame()
@@ -121,10 +121,11 @@ class NSEMasterDataAccess():
         :param end_date: end date of the prices
         :return: processed prices dataframe
         """
-
+        print(f'Fetching prices for {symbol}')
         prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
         prices_data = pd.read_pickle(prices_pkl_path)
-        rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value, 'CH_TRADE_LOW_PRICE': Columns.LOW.value,
+        rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value,
+                       'CH_TRADE_LOW_PRICE': Columns.LOW.value,
                        'CH_CLOSING_PRICE': Columns.CLOSE.value,
                        'CH_OPENING_PRICE': Columns.OPEN.value, 'CH_LAST_TRADED_PRICE': Columns.LTP.value,
                        'CH_TOTAL_TRADES': Columns.TRADES.value, 'CH_TOT_TRADED_QTY': Columns.VOLUME.value}
@@ -132,22 +133,25 @@ class NSEMasterDataAccess():
 
         prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data, symbol=symbol,
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
+                                                                               Columns.LOW.value, Columns.CLOSE.value,
+                                                                               Columns.LTP.value, Columns.VWAP.value])
         prices_data = self.adjust_prices_for_corporate_actions(action_type='bonus', prices=prices_data, symbol=symbol,
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
+                                                                               Columns.LOW.value, Columns.CLOSE.value,
+                                                                               Columns.LTP.value, Columns.VWAP.value])
         prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
                                                                symbol=symbol,
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
+                                                                               Columns.LOW.value, Columns.CLOSE.value,
+                                                                               Columns.LTP.value, Columns.VWAP.value])
+        good_date = GOOD_DATE_MAP.get(symbol, datetime(2017, 1, 1))
+        start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
         return prices_data
 
     # Function to extract the stock split ratio
     def _extract_split_ratio(self, description: str):
+        # TODO : this regex is not accurate for now manually extracted the new and old face value
         # Regular expression pattern to extract the two numbers
         match = re.search(r'R[e,s]?\.?(\d+\.?\d*)\/\-?\s+To\s+R[e,s]?\.?(\d+\.?\d*)\/\-', description)
 
@@ -163,6 +167,8 @@ class NSEMasterDataAccess():
             return None  # Return None if no match is found
 
     def _extract_bonus_multiplier(self, description: str):
+        # TODO : this regex is not accurate for now manually extracted the bonus and existing shares
+
         # Regular expression pattern to extract the two numbers in the Bonus X:Y format
         match = re.search(r'Bonus\s+(\d+):(\d+)', description)
 
@@ -178,6 +184,7 @@ class NSEMasterDataAccess():
             return None  # Return None if no match is found
 
     def _extract_dividend_amount(self, description: str, face_value: float):
+        # TODO : this regex is not accurate for now
         # Function to extract dividend amount
 
         # Check for percentage pattern, e.g., "Dividend 20%"
@@ -201,32 +208,24 @@ class NSEMasterDataAccess():
             raise NotImplementedError(
                 f"Only implemented for action_type -> split,bonus or dividend you passed {action_type}")
 
-        corporate_actions_df = pd.read_csv(CORPORATE_ACTIONS_PATH)
-        corporate_actions_df = corporate_actions_df.dropna(subset=['FACE VALUE'])
+        path_dict = {
+            'bonus': BONUS_NIFTY50,
+            'split': SPLIT_NIFTY50,
+            'dividend': DIVIDEND_NIFTY50
+        }
 
-        if action_type == 'split':
-            stock_split_df = corporate_actions_df[
-                corporate_actions_df['PURPOSE'].str.contains('Face Value Split', case=False, na=False)]
-        elif action_type == 'bonus':
-            stock_split_df = corporate_actions_df[
-                corporate_actions_df['PURPOSE'].str.contains('Bonus', case=False, na=False)]
-        else:
-            dividend_df = pd.read_csv(DIVIDEND_PATH)
-            dividend_df = dividend_df.dropna(subset=['FACE VALUE'])
-            stock_split_df = dividend_df[dividend_df['PURPOSE'].str.contains('Dividend', case=False, na=False)]
-
+        stock_split_df = pd.read_csv(path_dict[action_type])
         stock_split_df = stock_split_df[stock_split_df['SYMBOL'] == symbol]
         stock_split_df = stock_split_df.set_index('EX-DATE')
         stock_split_df.index = pd.to_datetime(stock_split_df.index)
         stock_split_df = stock_split_df.sort_index()
 
         if action_type == 'split':
-            stock_split_df['price_multiplier'] = stock_split_df['PURPOSE'].apply(self._extract_split_ratio)
+            stock_split_df['price_multiplier'] = stock_split_df['new_face_value'] / stock_split_df['old_face_value']
         elif action_type == 'bonus':
-            stock_split_df['price_multiplier'] = stock_split_df['PURPOSE'].apply(self._extract_bonus_multiplier)
+            stock_split_df['price_multiplier'] = stock_split_df['existing'] / (
+                        stock_split_df['existing'] + stock_split_df['bonus'])
         else:
-            stock_split_df['dividend_amount'] = stock_split_df.apply(
-                lambda x: self._extract_dividend_amount(x['PURPOSE'], x['FACE VALUE']), axis=1)
             prices = prices.join(stock_split_df[['dividend_amount']], how='left')
             prices['dividend_amount'] = prices['dividend_amount'].shift(-1)
             prices_before_ex_date = prices[~prices['dividend_amount'].isna()]
@@ -277,14 +276,14 @@ class NSEMasterDataAccess():
 
 if __name__ == '__main__':
     nse_data_access = NSEMasterDataAccess(output_path=PRICES_PKL_PATH)
-    ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50') # downloading nifty 50 stocks
+    ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50')  # downloading nifty 50 stocks
     ticker_list = sorted(ticker_list)
     # ticker_list = ['RELIANCE']
-    year_list = [i for i in range(2022,2025)]
+    year_list = [i for i in range(2022, 2025)]
     for ticker in ticker_list:
         for year in year_list:
             prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
-                                                           end_date=datetime(year, 12, 31))
+                                                                end_date=datetime(year, 12, 31))
 
     # for ticker in ticker_list:
     #     prices = nse_data_access.get_prices(symbol=ticker, start_date=datetime(2002, 1, 1),
