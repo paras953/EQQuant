@@ -9,21 +9,27 @@ import re
 import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
-from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns
+from utils.config import NSEPYTHON_PRICES_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns, GOOD_DATE_MAP, \
+    YFINANCE_PRICES_PATH, NSE_INDEX_MASTER
 import yfinance as yf
 
 
 # TODO : add basic price cleaning function
 class NSEMasterDataAccess():
     def __init__(self, output_path: str):
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
+        self.yfinance_prices_path = f'{YFINANCE_PRICES_PATH}/prices/'
+        self.nsepython_prices_path = f'{NSEPYTHON_PRICES_PATH}/prices/'
         self.output_path = output_path
 
-        if not os.path.exists(f'{self.output_path}/prices'):
-            os.makedirs(f'{self.output_path}/prices/')
+        if not os.path.exists(self.yfinance_prices_path):
+            os.makedirs(self.yfinance_prices_path)
 
-        self.prices_path = f'{self.output_path}/prices/'
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
+
+        if not os.path.exists(self.nsepython_prices_path):
+            os.makedirs(self.nsepython_prices_path)
+
         self.today = datetime.today()
 
     def getTickerMetaData(self, index_input: str) -> pd.DataFrame:
@@ -39,7 +45,7 @@ class NSEMasterDataAccess():
     @timer
     def extractTickerMasterData(self, index_name: str = None, save_metadata: bool = False) -> pd.DataFrame:
 
-        index_data = nsefetch('https://www.nseindia.com/api/equity-master')
+        index_data = NSE_INDEX_MASTER  # checkout 'https://www.nseindia.com/api/equity-master'
         data_dict = defaultdict(list)
 
         for keys, index_list in index_data.items():
@@ -70,49 +76,71 @@ class NSEMasterDataAccess():
         return master_data
 
     @timer
-    def download_historical_prices(self, symbol: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    def download_historical_prices(self, symbol: str, start_date: datetime, end_date: datetime,
+                                   use_yfinance: bool = True) -> pd.DataFrame:
         """
         This fn downloads the data and dumps the raw data into pkls
         :param symbol: symbol of the stock
         :param start_date: start date of the data download
         :param end_date: end date of data download
+        :param use_yfinance: True means it uses the prices downloaded from yfinance
         :return: raw data download from the nse api
         """
-        print(f'Fetching Data for {symbol}')
-        start_date_str = datetime.strftime(start_date, '%d-%m-%Y')
-        end_date_str = datetime.strftime(end_date, '%d-%m-%Y')
-        prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
+        print(f'Fetching Data for {symbol}, using Yahoo finance? -> {use_yfinance}')
+
+        if not use_yfinance:
+            start_date_str = start_date.strftime('%d-%m-%Y')
+            end_date_str = end_date.strftime('%d-%m-%Y')
+            prices_pkl_path = f'{self.nsepython_prices_path}/{symbol}_prices.pkl'
+        else:
+            start_date_str = start_date.strftime('%Y-%m-%d')
+            end_date_str = end_date.strftime('%Y-%m-%d')
+            prices_pkl_path = f'{self.yfinance_prices_path}/{symbol}_prices.pkl'
 
         if os.path.exists(prices_pkl_path):
             old_prices = pd.read_pickle(prices_pkl_path)
             start_date = old_prices.index.max() + BDay(1)
-            start_date_str = datetime.strftime(start_date, '%d-%m-%Y')
+            if not use_yfinance:
+                start_date_str = start_date.strftime('%d-%m-%Y')
+            else:
+                start_date_str = start_date.strftime('%Y-%m-%d')
         else:
             old_prices = None
 
         if start_date < end_date:
-            prices_data = equity_history(symbol, 'EQ', start_date_str, end_date_str)
+            if not use_yfinance:
+                prices_data = equity_history(symbol, 'EQ', start_date_str, end_date_str)
+            else:
+                ticker = yf.Ticker(f'{symbol}.NS')
+                prices_data = ticker.history(start=start_date_str, end=end_date_str, auto_adjust=False,
+                                             period='1d', back_adjust=False)
+
             if len(prices_data) == 0:
                 print(f'No data found for {symbol} between {start_date_str} and {end_date_str}')
                 # just return an empty dataframe
                 return pd.DataFrame()
 
-            prices_data = prices_data.rename(columns={'CH_TIMESTAMP': 'Date'})
-            prices_data['Date'] = pd.to_datetime(prices_data['Date'])
-            prices_data = prices_data.set_index('Date')
+            if not use_yfinance:
+                prices_data = prices_data.rename(columns={'CH_TIMESTAMP': 'Date'})
+                prices_data['Date'] = pd.to_datetime(prices_data['Date'])
+                prices_data = prices_data.set_index('Date')
+
+            prices_data.index = prices_data.index.tz_localize(None)
             prices_data = prices_data.sort_index()
 
             if old_prices is not None:
                 print('Appending Latest Data to Old data')
                 prices_data = pd.concat([old_prices, prices_data])
-                prices_data = prices_data.drop_duplicates(keep='first', subset=['_id'])
+                if not use_yfinance:
+                    prices_data = prices_data.drop_duplicates(keep='first', subset=['_id'])
 
             prices_data.to_pickle(prices_pkl_path)
             return prices_data
         else:
             return old_prices
 
-    def get_prices(self, symbol: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    def get_prices(self, symbol: str, start_date: datetime, end_date: datetime,
+                   use_yfinance: bool = True) -> pd.DataFrame:
         """
         This fn reads the prices downloaded using the download_historical_prices function and then
         processes it and returns a processed price df
@@ -120,124 +148,60 @@ class NSEMasterDataAccess():
         :param symbol: symbol of the stock
         :param start_date: start date of the prices
         :param end_date: end date of the prices
+        :param use_yfinance: True means it uses the prices downloaded from yfinance
         :return: processed prices dataframe
         """
         print(f'Fetching prices for {symbol}')
-        prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
+        if not use_yfinance:
+            prices_pkl_path = f'{self.nsepython_prices_path}/{symbol}_prices.pkl'
+        else:
+            prices_pkl_path = f'{self.yfinance_prices_path}/{symbol}_prices.pkl'
+
         prices_data = pd.read_pickle(prices_pkl_path)
 
         ## Handling price update by sorting it on updatedAt with date and then selecting the last one
-        prices_data["updatedAt"] = pd.to_datetime(prices_data["updatedAt"])
-        prices_data = prices_data.sort_values(["Date", "updatedAt"])
-        prices_data = prices_data[~prices_data.index.duplicated(keep='last')]
-        rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value, 'CH_TRADE_LOW_PRICE': Columns.LOW.value,
-                       'CH_CLOSING_PRICE': Columns.CLOSE.value,
-                       'CH_OPENING_PRICE': Columns.OPEN.value, 'CH_LAST_TRADED_PRICE': Columns.LTP.value,
-                       'CH_TOTAL_TRADES': Columns.TRADES.value, 'CH_TOT_TRADED_QTY': Columns.VOLUME.value}
-        prices_data = prices_data.rename(columns=rename_dict)
+        if not use_yfinance:
+            prices_data["updatedAt"] = pd.to_datetime(prices_data["updatedAt"])
+            prices_data = prices_data.sort_values(["Date", "updatedAt"])
+            prices_data = prices_data[~prices_data.index.duplicated(keep='last')]
+            rename_dict = {'CH_TIMESTAMP': 'Date', 'CH_TRADE_HIGH_PRICE': Columns.HIGH.value,
+                           'CH_TRADE_LOW_PRICE': Columns.LOW.value,
+                           'CH_CLOSING_PRICE': Columns.CLOSE.value,
+                           'CH_OPENING_PRICE': Columns.OPEN.value, 'CH_LAST_TRADED_PRICE': Columns.LTP.value,
+                           'CH_TOTAL_TRADES': Columns.TRADES.value, 'CH_TOT_TRADED_QTY': Columns.VOLUME.value}
+            prices_data = prices_data.rename(columns=rename_dict)
 
-        prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data, symbol=symbol,
-                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
-        # prices_data = self.adjust_prices_for_corporate_actions(action_type='bonus', prices=prices_data, symbol=symbol,
-        #                                                        prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-        #                                                                        Columns.LOW.value,Columns.CLOSE.value,
-        #                                                                        Columns.LTP.value,Columns.VWAP.value])
+            prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data, symbol=symbol,
+                                                                   prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+                                                                                   Columns.LOW.value, Columns.CLOSE.value,
+                                                                                   Columns.LTP.value, Columns.VWAP.value])
 
-        prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
-                                                               symbol=symbol,
-                                                               prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value, Columns.CLOSE.value,
-                                                                               Columns.LTP.value, Columns.VWAP.value])
-        good_date = GOOD_DATE_MAP.get(symbol, datetime(2017, 1, 1))
+            prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
+                                                                   symbol=symbol,
+                                                                   prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
+                                                                                   Columns.LOW.value, Columns.CLOSE.value,
+                                                                                   Columns.LTP.value, Columns.VWAP.value])
+        else:
+            rename_dict = {'Open':Columns.OPEN.value,'Close':Columns.CLOSE.value,
+                           'High':Columns.HIGH.value,'Low':Columns.LOW.value,'Adj Close':Columns.ADJ_CLOSE.value}
+            prices_data = prices_data.rename(columns=rename_dict)
+
+        good_date = GOOD_DATE_MAP.get(symbol, datetime(2002, 1, 1))
         start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
         return prices_data
 
-    # Function to extract the stock split ratio
-    def _extract_split_ratio(self, description: str):
-        # TODO : this regex is not accurate for now manually extracted the new and old face value
-        # Regular expression pattern to extract the two numbers
-        match = re.search(r'R[e,s]?\.?(\d+\.?\d*)\/\-?\s+To\s+R[e,s]?\.?(\d+\.?\d*)\/\-', description)
-
-        if match:
-            # Extract the two numbers (initial value and final value)
-            initial_value = float(match.group(1))
-            final_value = float(match.group(2))
-
-            # Calculate the ratio as final_value / initial_value
-            ratio = final_value / initial_value
-            return ratio
-        else:
-            return None  # Return None if no match is found
-
-    def _extract_bonus_multiplier(self, description: str):
-        # TODO : this regex is not accurate for now manually extracted the bonus and existing shares
-
-        # Regular expression pattern to extract the two numbers in the Bonus X:Y format
-        match = re.search(r'Bonus\s+(\d+):(\d+)', description)
-
-        if match:
-            # Extract the two numbers (bonus and existing shares)
-            bonus_shares = int(match.group(1))
-            existing_shares = int(match.group(2))
-
-            # Calculate the multiplier as existing_shares / (bonus_shares + existing_shares)
-            multiplier = existing_shares / (bonus_shares + existing_shares)
-            return multiplier
-        else:
-            return None  # Return None if no match is found
-
-    def _extract_dividend_amount(self, description: str, face_value: float):
-        # TODO : this regex is not accurate for now
-        # Function to extract dividend amount
-
-        # Check for percentage pattern, e.g., "Dividend 20%"
-        percentage_match = re.search(r'(\d+)%', description)
-        if percentage_match:
-            percent_value = float(percentage_match.group(1))
-            return (percent_value / 100) * face_value
-
-        # Check for absolute amount pattern, e.g., "Dividend Rs 5" or "Re 1"
-        absolute_match = re.search(r'Rs.\s?(\d*\.?\d+)|Re\s?(\d*\.?\d+)', description)
-        if absolute_match:
-            # Extract either Rs or Re value
-            amount_value = float(absolute_match.group(1) or absolute_match.group(2))
-            return amount_value
-
-            # Return NaN if no dividend information found
-        return None
-
     def _find_corporate_action(self, symbol: str, action_type: str, prices: pd.DataFrame, prices_columns: List[str]):
-        if action_type not in ['split', 'bonus', 'dividend']:
+        if action_type not in ['split', 'dividend']:
+            # split and bonus data is included in splits itself
             raise NotImplementedError(
-                f"Only implemented for action_type -> split,bonus or dividend you passed {action_type}")
-
-
-        # corporate_actions_df = pd.read_csv(CORPORATE_ACTIONS_PATH)
-        # corporate_actions_df = corporate_actions_df.dropna(subset=['FACE VALUE'])
-        #
-        # if action_type == 'split':
-        #     stock_split_df = corporate_actions_df[
-        #         corporate_actions_df['PURPOSE'].str.contains('Face Value Split', case=False, na=False)]
-        # elif action_type == 'bonus':
-        #     stock_split_df = corporate_actions_df[
-        #         corporate_actions_df['PURPOSE'].str.contains('Bonus', case=False, na=False)]
-        # else:
-        #     dividend_df = pd.read_csv(DIVIDEND_PATH)
-        #     dividend_df = dividend_df.dropna(subset=['FACE VALUE'])
-        #     stock_split_df = dividend_df[dividend_df['PURPOSE'].str.contains('Dividend', case=False, na=False)]
-        #
-        # stock_split_df = stock_split_df[stock_split_df['SYMBOL'] == symbol]
-        # stock_split_df = stock_split_df.set_index('EX-DATE')
-        # stock_split_df.index = pd.to_datetime(stock_split_df.index)
-        # stock_split_df = stock_split_df.sort_index()
+                f"Only implemented for action_type -> split or dividend you passed {action_type}")
 
         if action_type == 'split':
             split_info = yf.Ticker(symbol + ".NS").splits
-            stock_split_df = pd.DataFrame(data = split_info)
+            stock_split_df = pd.DataFrame(data=split_info)
             stock_split_df.columns = ["price_multiplier"]
+            stock_split_df["price_multiplier"] = 1 / stock_split_df["price_multiplier"]
             stock_split_df.index = stock_split_df.index.date.astype("datetime64[ns]")
             stock_split_df.index.name = 'EX-DATE'
         else:
@@ -275,7 +239,6 @@ class NSEMasterDataAccess():
 
         split_data = self._find_corporate_action(symbol=symbol, action_type=action_type, prices=prices,
                                                  prices_columns=prices_columns)
-
         if action_type in ['bonus', 'split']:
             for ex_date, row in split_data.iterrows():
                 mask = (prices.index < ex_date)
@@ -288,6 +251,22 @@ class NSEMasterDataAccess():
                 prices[f'Adj{cols}'] = prices[cols] * split_data['price_multiplier']
         return prices
 
+    def download_historical_prices_yfinance(self, symbol: str, start_date: datetime, end_date: datetime) -> None:
+        """
+        This function will download and dump the data in pkl format
+        :param symbol: pass the NSE symbol only i.e. ADANIENT and not ADANIENT.NS -> this is what yfinance needs actually
+        :param start_date: start date of the data download
+        :param end_date: end date of data download
+        :return: None
+        """
+        ticker = yf.Ticker(f'{symbol}.NS')
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        prices = ticker.history(start=start_str, end=end_str, auto_adjust=False, period='1d', back_adjust=False)
+        prices = prices.sort_index()
+        prices.to_pickle(f'{self.yfinance_prices_path}/{symbol}_prices.pkl')
+        return None
+
     def get_index_constituents(self, index_name: str) -> List[str]:
         """
         :param index_name: eg NIFTY 50
@@ -298,11 +277,11 @@ class NSEMasterDataAccess():
 
 
 if __name__ == '__main__':
-    nse_data_access = NSEMasterDataAccess(output_path=PRICES_PKL_PATH)
+    nse_data_access = NSEMasterDataAccess(output_path=YFINANCE_PRICES_PATH)
     ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50')  # downloading nifty 50 stocks
     ticker_list = sorted(ticker_list)
     # ticker_list = ['RELIANCE']
-    year_list = [i for i in range(2022, 2025)]
+    year_list = [i for i in range(2007, 2025)]
     for ticker in ticker_list:
         for year in year_list:
             prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),

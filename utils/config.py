@@ -3,16 +3,93 @@ from datetime import datetime
 import os
 
 base_path = 'C:/Users/paras/PycharmProjects/EQQuant'
-PRICES_PKL_PATH = '../additional_data/'
+NSEPYTHON_PRICES_PATH = '../additional_data/'
 TICKER_METADATA_PATH = '../additional_data/ticker_metadata_2024-10-08.csv'
-
+YFINANCE_PRICES_PATH = '../additional_data/yfinance_data/'
 # just make sure to update these files everyday
 # TODO : try to auto download these files from NSE website
 # src : https://www.nseindia.com/companies-listing/corporate-filings-actions
 CORPORATE_ACTIONS_PATH = '../additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
 DIVIDEND_PATH = '../additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
 
-
+GOOD_DATE_MAP = {}
+NSE_INDEX_MASTER = {
+    "Broad Market Indices": [
+        "NIFTY 50",
+        "NIFTY NEXT 50",
+        "NIFTY MIDCAP 50",
+        "NIFTY MIDCAP 100",
+        "NIFTY MIDCAP 150",
+        "NIFTY SMALLCAP 50",
+        "NIFTY SMALLCAP 100",
+        "NIFTY SMALLCAP 250",
+        "NIFTY MIDSMALLCAP 400",
+        "NIFTY 100",
+        "NIFTY 200",
+        "NIFTY500 MULTICAP 50:25:25",
+        "NIFTY LARGEMIDCAP 250",
+        "NIFTY MIDCAP SELECT",
+        "NIFTY TOTAL MARKET",
+        "NIFTY MICROCAP 250",
+        "NIFTY 500"
+    ],
+    "Sectoral Indices": [
+        "NIFTY AUTO",
+        "NIFTY BANK",
+        "NIFTY ENERGY",
+        "NIFTY FINANCIAL SERVICES",
+        "NIFTY FINANCIAL SERVICES 25/50",
+        "NIFTY FMCG",
+        "NIFTY IT",
+        "NIFTY MEDIA",
+        "NIFTY METAL",
+        "NIFTY PHARMA",
+        "NIFTY PSU BANK",
+        "NIFTY REALTY",
+        "NIFTY PRIVATE BANK",
+        "NIFTY HEALTHCARE INDEX",
+        "NIFTY CONSUMER DURABLES",
+        "NIFTY OIL & GAS",
+        "NIFTY MIDSMALL HEALTHCARE"
+    ],
+    "Thematic Indices": [
+        "NIFTY COMMODITIES",
+        "NIFTY INDIA CONSUMPTION",
+        "NIFTY CPSE",
+        "NIFTY INFRASTRUCTURE",
+        "NIFTY MNC",
+        "NIFTY GROWTH SECTORS 15",
+        "NIFTY PSE",
+        "NIFTY SERVICES SECTOR",
+        "NIFTY100 LIQUID 15",
+        "NIFTY MIDCAP LIQUID 15",
+        "NIFTY INDIA DIGITAL",
+        "NIFTY100 ESG",
+        "NIFTY INDIA MANUFACTURING",
+        "NIFTY INDIA CORPORATE GROUP INDEX - TATA GROUP 25% CAP",
+        "NIFTY500 MULTICAP INDIA MANUFACTURING 50:30:20",
+        "NIFTY500 MULTICAP INFRASTRUCTURE 50:30:20"
+    ],
+    "Strategy Indices": [
+        "NIFTY DIVIDEND OPPORTUNITIES 50",
+        "NIFTY50 VALUE 20",
+        "NIFTY100 QUALITY 30",
+        "NIFTY50 EQUAL WEIGHT",
+        "NIFTY100 EQUAL WEIGHT",
+        "NIFTY100 LOW VOLATILITY 30",
+        "NIFTY ALPHA 50",
+        "NIFTY200 QUALITY 30",
+        "NIFTY ALPHA LOW-VOLATILITY 30",
+        "NIFTY200 MOMENTUM 30",
+        "NIFTY MIDCAP150 QUALITY 50",
+        "NIFTY200 ALPHA 30",
+        "NIFTY MIDCAP150 MOMENTUM 50"
+    ],
+    "Others": [
+        "Securities in F&O",
+        "Permitted to Trade"
+    ]
+}
 
 class Columns(Enum):
     OPEN = 'Open'
@@ -27,6 +104,7 @@ class Columns(Enum):
     ADJ_OPEN = 'AdjOpen'
     ADJ_LTP = 'AdjLastTradedPrice'
     ADJ_VWAP = 'AdjVWAP'
-
     VOLUME = 'Volume'
     TRADES = 'Trades'
+
+
