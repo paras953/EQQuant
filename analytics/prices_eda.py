@@ -6,8 +6,9 @@ from data.NSEDataAccess import NSEMasterDataAccess
 from utils.plotters import line_plot, combine_plot
 from datetime import datetime
 from typing import Tuple
-from utils.config import PRICES_PKL_PATH,TICKER_METADATA_PATH,DIVIDEND_PATH_ALL,BONUS_PATH_ALL,SPLIT_PATH_ALL
-from typing import List
+from utils.config import PRICES_PKL_PATH,TICKER_METADATA_PATH
+import os
+
 
 def plot_prices(symbol: str, output_path: str, period: Tuple[datetime, datetime]) -> None:
     """
@@ -79,16 +80,23 @@ def filter_corporate_actions_data(symbol_list:List[str], action_type:str)->pd.Da
     return action_df
 
 if __name__=='__main__':
-    output_path = r'C:/Users/paras/NSE_DATA/eda_plots/'
-    prices_path = f'{PRICES_PKL_PATH}/prices'
-    symbol_list = sorted([a.split('_')[0] for a in os.listdir(prices_path)])
-    symbol_list = symbol_list[0:25]
-    # action_type = 'split'
-    # bonus_df = filter_corporate_actions_data(symbol_list=symbol_list,action_type=action_type)
-    # bonus_df.to_csv(f'{output_path}/{action_type}_nifty50_stocks.csv')
-    period = (datetime(2002,1,1),datetime(2024,12,31))
-    for symbol  in symbol_list:
-        plot_prices(symbol=symbol,output_path=output_path,period=period)
+    output_path = '../EDA'
+    file_list = sorted(os.listdir("../additional_data/prices"))
+    file_list = file_list[24:]
+    period = (datetime(2002,1,1),datetime(2024,8,31))
+    failed_symbol = []
+    for file in file_list:
+        symbol = file.split("_")[0]
+        try:
+            plot_prices(symbol=symbol, output_path=output_path, period=period)
+        except:
+            failed_symbol.append(symbol)
+
+    print(f"Symbols for which the code failed are {failed_symbol}")
+    # symbol_list = ["TATASTEEL"]
+    # for symbol  in symbol_list:
+    #     plot_prices(symbol=symbol,output_path=output_path,period=period)
+
 
 
 
