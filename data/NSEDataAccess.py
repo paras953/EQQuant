@@ -124,6 +124,7 @@ class NSEMasterDataAccess():
 
         prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
         prices_data = pd.read_pickle(prices_pkl_path)
+        ## Handling price update by sorting it on updatedAt with date and then selecting the last one
         prices_data["updatedAt"] = pd.to_datetime(prices_data["updatedAt"])
         prices_data = prices_data.sort_values(["Date", "updatedAt"])
         prices_data = prices_data[~prices_data.index.duplicated(keep='last')]
@@ -167,7 +168,7 @@ class NSEMasterDataAccess():
 
     def _extract_bonus_multiplier(self, description: str):
         # Regular expression pattern to extract the two numbers in the Bonus X:Y format
-        match = re.search(r'Bonus\s+(\d+)\s*:\s*(\d+)', description)
+        match = re.search(r'Bonus\s+(\d+):(\d+)', description)
 
         if match:
             # Extract the two numbers (bonus and existing shares)
