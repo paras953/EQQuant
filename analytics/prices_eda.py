@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 from data.NSEDataAccess import NSEMasterDataAccess
@@ -6,6 +8,7 @@ from datetime import datetime
 from typing import Tuple
 from utils.config import PRICES_PKL_PATH,TICKER_METADATA_PATH
 import os
+
 
 def plot_prices(symbol: str, output_path: str, period: Tuple[datetime, datetime]) -> None:
     """
@@ -49,6 +52,33 @@ def plot_prices(symbol: str, output_path: str, period: Tuple[datetime, datetime]
     combine_plot(fig_list=fig_list,output_path=output_path,file_name=f'{company_name}_eda_plots')
     return None
 
+
+def filter_corporate_actions_data(symbol_list:List[str], action_type:str)->pd.DataFrame:
+    """
+    :param symbol: list of stock symbols
+    :param action_type: one of dividend, bonus, split
+    :return: returns the historical corporate action of th stock symbol
+    """
+    if action_type not in ['dividend','bonus','split']:
+        raise ValueError(f'invalid action type, it should be one of [dividend,bonus,split] you passed {action_type}')
+
+    path_dict = {'bonus':BONUS_PATH_ALL,
+                 'split':SPLIT_PATH_ALL,
+                 'dividend':DIVIDEND_PATH_ALL
+                 }
+    df_list = []
+    for paths in path_dict[action_type].split('|'):
+        df = pd.read_csv(paths)
+        df_list.append(df)
+    df = pd.concat(df_list)
+    actions_df_list = []
+
+    for symbol in symbol_list:
+        action_df = df.loc[df['SYMBOL']==symbol]
+        actions_df_list.append(action_df)
+    action_df = pd.concat(actions_df_list)
+    return action_df
+
 if __name__=='__main__':
     output_path = '../EDA'
     file_list = sorted(os.listdir("../additional_data/prices"))
@@ -66,6 +96,8 @@ if __name__=='__main__':
     # symbol_list = ["TATASTEEL"]
     # for symbol  in symbol_list:
     #     plot_prices(symbol=symbol,output_path=output_path,period=period)
+
+
 
 
 

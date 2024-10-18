@@ -12,6 +12,7 @@ from utils.decorators import timer
 from utils.config import PRICES_PKL_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns
 import yfinance as yf
 
+
 # TODO : add basic price cleaning function
 class NSEMasterDataAccess():
     def __init__(self, output_path: str):
@@ -36,7 +37,7 @@ class NSEMasterDataAccess():
         return symbol_df
 
     @timer
-    def extractTickerMasterData(self, index_name: str = None,save_metadata:bool=False) -> pd.DataFrame:
+    def extractTickerMasterData(self, index_name: str = None, save_metadata: bool = False) -> pd.DataFrame:
 
         index_data = nsefetch('https://www.nseindia.com/api/equity-master')
         data_dict = defaultdict(list)
@@ -91,7 +92,7 @@ class NSEMasterDataAccess():
 
         if start_date < end_date:
             prices_data = equity_history(symbol, 'EQ', start_date_str, end_date_str)
-            if len(prices_data)==0:
+            if len(prices_data) == 0:
                 print(f'No data found for {symbol} between {start_date_str} and {end_date_str}')
                 # just return an empty dataframe
                 return pd.DataFrame()
@@ -121,9 +122,10 @@ class NSEMasterDataAccess():
         :param end_date: end date of the prices
         :return: processed prices dataframe
         """
-
+        print(f'Fetching prices for {symbol}')
         prices_pkl_path = f'{self.prices_path}/{symbol}_prices.pkl'
         prices_data = pd.read_pickle(prices_pkl_path)
+
         ## Handling price update by sorting it on updatedAt with date and then selecting the last one
         prices_data["updatedAt"] = pd.to_datetime(prices_data["updatedAt"])
         prices_data = prices_data.sort_values(["Date", "updatedAt"])
@@ -142,16 +144,20 @@ class NSEMasterDataAccess():
         #                                                        prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
         #                                                                        Columns.LOW.value,Columns.CLOSE.value,
         #                                                                        Columns.LTP.value,Columns.VWAP.value])
+
         prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
                                                                symbol=symbol,
                                                                prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                               Columns.LOW.value,Columns.CLOSE.value,
-                                                                               Columns.LTP.value,Columns.VWAP.value])
+                                                                               Columns.LOW.value, Columns.CLOSE.value,
+                                                                               Columns.LTP.value, Columns.VWAP.value])
+        good_date = GOOD_DATE_MAP.get(symbol, datetime(2017, 1, 1))
+        start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
         return prices_data
 
     # Function to extract the stock split ratio
     def _extract_split_ratio(self, description: str):
+        # TODO : this regex is not accurate for now manually extracted the new and old face value
         # Regular expression pattern to extract the two numbers
         match = re.search(r'R[e,s]?\.?(\d+\.?\d*)\/\-?\s+To\s+R[e,s]?\.?(\d+\.?\d*)\/\-', description)
 
@@ -167,6 +173,8 @@ class NSEMasterDataAccess():
             return None  # Return None if no match is found
 
     def _extract_bonus_multiplier(self, description: str):
+        # TODO : this regex is not accurate for now manually extracted the bonus and existing shares
+
         # Regular expression pattern to extract the two numbers in the Bonus X:Y format
         match = re.search(r'Bonus\s+(\d+):(\d+)', description)
 
@@ -182,6 +190,7 @@ class NSEMasterDataAccess():
             return None  # Return None if no match is found
 
     def _extract_dividend_amount(self, description: str, face_value: float):
+        # TODO : this regex is not accurate for now
         # Function to extract dividend amount
 
         # Check for percentage pattern, e.g., "Dividend 20%"
@@ -204,6 +213,7 @@ class NSEMasterDataAccess():
         if action_type not in ['split', 'bonus', 'dividend']:
             raise NotImplementedError(
                 f"Only implemented for action_type -> split,bonus or dividend you passed {action_type}")
+
 
         # corporate_actions_df = pd.read_csv(CORPORATE_ACTIONS_PATH)
         # corporate_actions_df = corporate_actions_df.dropna(subset=['FACE VALUE'])
@@ -237,6 +247,7 @@ class NSEMasterDataAccess():
             stock_split_df.index = stock_split_df.index.date.astype("datetime64[ns]")
             stock_split_df.index.name = 'EX-DATE'
             stock_split_df = stock_split_df.groupby("EX-DATE").sum()
+
             prices = prices.join(stock_split_df[['dividend_amount']], how='left')
             prices['dividend_amount'] = prices['dividend_amount'].shift(-1)
             prices_before_ex_date = prices[~prices['dividend_amount'].isna()]
@@ -288,14 +299,14 @@ class NSEMasterDataAccess():
 
 if __name__ == '__main__':
     nse_data_access = NSEMasterDataAccess(output_path=PRICES_PKL_PATH)
-    ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50') # downloading nifty 50 stocks
+    ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50')  # downloading nifty 50 stocks
     ticker_list = sorted(ticker_list)
     # ticker_list = ['RELIANCE']
-    year_list = [i for i in range(2022,2025)]
+    year_list = [i for i in range(2022, 2025)]
     for ticker in ticker_list:
         for year in year_list:
             prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
-                                                           end_date=datetime(year, 12, 31))
+                                                                end_date=datetime(year, 12, 31))
 
     # for ticker in ticker_list:
     #     prices = nse_data_access.get_prices(symbol=ticker, start_date=datetime(2002, 1, 1),

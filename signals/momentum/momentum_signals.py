@@ -37,4 +37,3 @@ def directional_movement(prices: pd.DataFrame,window:int) -> Tuple[pd.DataFrame,
         if (x[f'prev_{Columns.ADJ_LOW.value}'] - x[Columns.ADJ_LOW.value]) >
            (x[Columns.ADJ_HIGH.value] - x[f'prev_{Columns.ADJ_HIGH.value}']) else 0)
 
-    
