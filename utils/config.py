@@ -2,7 +2,6 @@ from enum import Enum
 from datetime import datetime
 import os
 
-base_path = 'C:/Users/paras/PycharmProjects/EQQuant'
 NSEPYTHON_PRICES_PATH = '../additional_data/'
 TICKER_METADATA_PATH = '../additional_data/ticker_metadata_2024-10-08.csv'
 YFINANCE_PRICES_PATH = '../additional_data/yfinance_data/'
@@ -12,7 +11,13 @@ YFINANCE_PRICES_PATH = '../additional_data/yfinance_data/'
 CORPORATE_ACTIONS_PATH = '../additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
 DIVIDEND_PATH = '../additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
 
-GOOD_DATE_MAP = {}
+GOOD_DATE_MAP = {'ADANIENT':datetime(2007,1,1),
+                 'ADANIPORTS':datetime(2008,1,1),
+                 'APOLLOHOSP' :datetime(2003,1,1),
+                 'ASIANPAINT' :datetime(2003,1,1),
+
+
+                 }
 NSE_INDEX_MASTER = {
     "Broad Market Indices": [
         "NIFTY 50",

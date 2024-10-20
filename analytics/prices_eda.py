@@ -12,7 +12,6 @@ import os
 
 def plot_prices(symbol: str, output_path: str, period: Tuple[datetime, datetime]) -> None:
     """
-
     :param symbol: stock symbol you want to plot the prices for
     :param output_path: directory where the plots will be dumped
     :param period: start and end date in a tuple
@@ -56,6 +55,7 @@ if __name__=='__main__':
     output_path = '../EDA'
     file_list = sorted(os.listdir(f'{YFINANCE_PRICES_PATH}/prices/'))
     file_list = file_list[0:25]
+    file_list = ['RELIANCE']
     period = (datetime(2002,1,1),datetime(2024,10,17))
     failed_symbol = []
     for file in file_list:
