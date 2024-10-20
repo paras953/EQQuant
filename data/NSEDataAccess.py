@@ -3,15 +3,14 @@ import pandas as pd
 from collections import defaultdict
 from typing import Tuple, Dict, List
 from urllib.parse import urlparse, quote
-import numpy as np
 from datetime import datetime
-import re
+import yfinance as yf
 import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
 from utils.config import NSEPYTHON_PRICES_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns, GOOD_DATE_MAP, \
     YFINANCE_PRICES_PATH, NSE_INDEX_MASTER
-import yfinance as yf
+from utils.pandas_utils import remove_outliers
 
 
 # TODO : add basic price cleaning function
@@ -186,9 +185,11 @@ class NSEMasterDataAccess():
                            'High':Columns.HIGH.value,'Low':Columns.LOW.value,'Adj Close':Columns.ADJ_CLOSE.value}
             prices_data = prices_data.rename(columns=rename_dict)
 
+        prices_data = remove_outliers(df=prices_data,column=Columns.ADJ_CLOSE.value)
         good_date = GOOD_DATE_MAP.get(symbol, datetime(2002, 1, 1))
         start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
+
         return prices_data
 
     def _find_corporate_action(self, symbol: str, action_type: str, prices: pd.DataFrame, prices_columns: List[str]):
