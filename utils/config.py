@@ -11,13 +11,33 @@ YFINANCE_PRICES_PATH = '../additional_data/yfinance_data/'
 CORPORATE_ACTIONS_PATH = '../additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
 DIVIDEND_PATH = '../additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
 
-GOOD_DATE_MAP = {'ADANIENT':datetime(2007,1,1),
-                 'ADANIPORTS':datetime(2008,1,1),
-                 'APOLLOHOSP' :datetime(2003,1,1),
-                 'ASIANPAINT' :datetime(2003,1,1),
-
-
+GOOD_DATE_MAP = {'ADANIENT': datetime(2007, 1, 1),
+                 'ADANIPORTS': datetime(2008, 1, 1),
+                 'APOLLOHOSP': datetime(2003, 1, 1),
+                 'ASIANPAINT': datetime(2003, 1, 1),
+                 'AXISBANK': datetime(2003, 1, 1),
+                 'BAJAJ-AUTO': datetime(2009, 1, 1),  # de-merger in march 2008 weird drop so set this as good date.
+                 'BAJFINANCE': datetime(2003, 1, 1),
+                 'BAJAJFINSV': datetime(2009, 1, 1),
+                 'BEL': datetime(2003, 1, 1),
+                 'BPCL': datetime(2003, 1, 1),
+                 'BHARTIARTL': datetime(2003, 1, 1),
+                 'BRITANNIA': datetime(2003, 1, 1),
+                 'CIPLA': datetime(2005, 1, 1),  # pre 2005 the zscoring failed to recognize outliers will check later,
+                 'COALINDIA': datetime(2011, 1, 1),  # listed in 2010 mid
+                 'DRREDDY': datetime(2003, 1, 1),
+                 'EICHERMOT': datetime(2003, 1, 1),
+                 'GRASIM': datetime(2003, 1, 1),
+                 'HCLTECH': datetime(2003, 1, 1),
+                 'HDFCBANK': datetime(2003, 1, 1),
+                 'HDFCLIFE': datetime(2018, 1, 1),  # listed in nov 2017
+                 'HEROMOTOCO': datetime(2003, 1, 1),
+                 'HINDALCO': datetime(2003, 1, 1),
+                 'HINDUNILVR': datetime(2003, 1, 1),
+                 'ICICIBANK': datetime(2003, 1, 1),
+                 'INDUSINDBK': datetime(2003, 1, 1),
                  }
+
 NSE_INDEX_MASTER = {
     "Broad Market Indices": [
         "NIFTY 50",
@@ -96,6 +116,7 @@ NSE_INDEX_MASTER = {
     ]
 }
 
+
 class Columns(Enum):
     OPEN = 'Open'
     HIGH = 'High'
@@ -111,5 +132,3 @@ class Columns(Enum):
     ADJ_VWAP = 'AdjVWAP'
     VOLUME = 'Volume'
     TRADES = 'Trades'
-
-

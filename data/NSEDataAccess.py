@@ -8,9 +8,9 @@ import yfinance as yf
 import os
 from pandas.tseries.offsets import BDay
 from utils.decorators import timer
-from utils.config import NSEPYTHON_PRICES_PATH, CORPORATE_ACTIONS_PATH, DIVIDEND_PATH, Columns, GOOD_DATE_MAP, \
+from utils.config import NSEPYTHON_PRICES_PATH, Columns, GOOD_DATE_MAP, \
     YFINANCE_PRICES_PATH, NSE_INDEX_MASTER
-from utils.pandas_utils import remove_outliers
+from utils.pandas_utils import clean_prices
 
 
 # TODO : add basic price cleaning function
@@ -170,22 +170,29 @@ class NSEMasterDataAccess():
                            'CH_TOTAL_TRADES': Columns.TRADES.value, 'CH_TOT_TRADED_QTY': Columns.VOLUME.value}
             prices_data = prices_data.rename(columns=rename_dict)
 
-            prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data, symbol=symbol,
-                                                                   prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                                   Columns.LOW.value, Columns.CLOSE.value,
-                                                                                   Columns.LTP.value, Columns.VWAP.value])
+            prices_data = self.adjust_prices_for_corporate_actions(action_type='split', prices=prices_data,
+                                                                   symbol=symbol,
+                                                                   prices_columns=[Columns.OPEN.value,
+                                                                                   Columns.HIGH.value,
+                                                                                   Columns.LOW.value,
+                                                                                   Columns.CLOSE.value,
+                                                                                   Columns.LTP.value,
+                                                                                   Columns.VWAP.value])
 
             prices_data = self.adjust_prices_for_corporate_actions(action_type='dividend', prices=prices_data,
                                                                    symbol=symbol,
-                                                                   prices_columns=[Columns.OPEN.value, Columns.HIGH.value,
-                                                                                   Columns.LOW.value, Columns.CLOSE.value,
-                                                                                   Columns.LTP.value, Columns.VWAP.value])
+                                                                   prices_columns=[Columns.OPEN.value,
+                                                                                   Columns.HIGH.value,
+                                                                                   Columns.LOW.value,
+                                                                                   Columns.CLOSE.value,
+                                                                                   Columns.LTP.value,
+                                                                                   Columns.VWAP.value])
         else:
-            rename_dict = {'Open':Columns.OPEN.value,'Close':Columns.CLOSE.value,
-                           'High':Columns.HIGH.value,'Low':Columns.LOW.value,'Adj Close':Columns.ADJ_CLOSE.value}
+            rename_dict = {'Open': Columns.OPEN.value, 'Close': Columns.CLOSE.value,
+                           'High': Columns.HIGH.value, 'Low': Columns.LOW.value, 'Adj Close': Columns.ADJ_CLOSE.value}
             prices_data = prices_data.rename(columns=rename_dict)
 
-        prices_data = remove_outliers(df=prices_data,column=Columns.ADJ_CLOSE.value)
+        prices_data = clean_prices(df=prices_data, column=Columns.ADJ_CLOSE.value)
         good_date = GOOD_DATE_MAP.get(symbol, datetime(2002, 1, 1))
         start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
