@@ -1,11 +1,8 @@
-import os
-
 import pandas as pd
-import numpy as np
 from data.NSEDataAccess import NSEMasterDataAccess
 from utils.plotters import line_plot, combine_plot
 from datetime import datetime
-from typing import Tuple,List
+from typing import Tuple
 from utils.config import YFINANCE_PRICES_PATH,TICKER_METADATA_PATH
 import os
 
@@ -55,7 +52,7 @@ if __name__=='__main__':
     output_path = '../EDA'
     file_list = sorted(os.listdir(f'{YFINANCE_PRICES_PATH}/prices/'))
     file_list = file_list[0:25]
-    file_list = ['RELIANCE']
+    file_list = ['BEL']
     period = (datetime(2002,1,1),datetime(2024,10,17))
     failed_symbol = []
     for file in file_list:
