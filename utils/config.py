@@ -2,14 +2,18 @@ from enum import Enum
 from datetime import datetime
 import os
 
-NSEPYTHON_PRICES_PATH = '../additional_data/'
-TICKER_METADATA_PATH = '../additional_data/ticker_metadata_2024-10-08.csv'
-YFINANCE_PRICES_PATH = '../additional_data/yfinance_data/'
+
+repo_root = 'C:/Users/paras/PycharmProjects/EQQuant/'
+
+
+NSEPYTHON_PRICES_PATH = f'{repo_root}/additional_data/'
+TICKER_METADATA_PATH = f'{repo_root}/additional_data/ticker_metadata_2024-10-08.csv'
+YFINANCE_PRICES_PATH = f'{repo_root}/additional_data/yfinance_data/'
 # just make sure to update these files everyday
 # TODO : try to auto download these files from NSE website
 # src : https://www.nseindia.com/companies-listing/corporate-filings-actions
-CORPORATE_ACTIONS_PATH = '../additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
-DIVIDEND_PATH = '../additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
+CORPORATE_ACTIONS_PATH = f'{repo_root}/additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
+DIVIDEND_PATH = f'{repo_root}/additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
 
 GOOD_DATE_MAP = {'ADANIENT': datetime(2007, 1, 1),
                  'ADANIPORTS': datetime(2008, 1, 1),
