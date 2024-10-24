@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 
 
-repo_root = 'C:/Users/paras/PycharmProjects/EQQuant/'
+repo_root = '../..'
 
 
 NSEPYTHON_PRICES_PATH = f'{repo_root}/additional_data/'
