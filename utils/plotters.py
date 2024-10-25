@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from matplotlib import pyplot as plt
+import numpy as np
 from typing import List, Tuple
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -44,3 +45,34 @@ def combine_plot(fig_list:List[plt.figure],output_path:str,file_name:str) -> Non
     print(f'File saved as -> {file_name}')
     return None
 
+def multi_bar_plot(df:pd.DataFrame,x_column:str,y_column_list:List[str],data_type:str,title:str)->plt.figure:
+    """
+
+    :param df: a pandas df
+    :param x_column: x-axis column name
+    :param y_column_list: y-axis column name
+    :param data_type : type of data that is being plotted
+    :param title : title of the plot
+    :return: figure object
+    """
+    # Set up dynamic bar width and positions based on the number of categories
+    num_categories = len(y_column_list)
+    bar_width = 0.8 / num_categories  # Width is adjusted to fit all categories
+    x = np.arange(len(df))  # Position of each group on the x-axis
+
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    for i, cat_type in enumerate(y_column_list):
+        ax.bar(x + i * bar_width - (bar_width * (num_categories - 1) / 2),
+               df[cat_type], width=bar_width, label=cat_type)
+
+    ax.set_xlabel(x_column)
+    ax.set_ylabel(data_type)
+    ax.set_xticks(x)
+    ax.set_xticklabels(df[x_column])
+    ax.legend(title="Period")
+    ax.grid(visible=True, which='major', axis='y', alpha=0.2, color='r')
+    ax.set_title(title)
+    plt.close(fig)
+    return fig
