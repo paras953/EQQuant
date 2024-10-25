@@ -43,5 +43,5 @@ def clean_prices(df: pd.DataFrame, column: str, window_size: int = 11, threshold
     print("Stats dict, all figures are mentioned in percentage terms")
     print(stats_dict)
     df[Columns.ADJ_CLOSE.value] = df[Columns.ADJ_CLOSE.value].ffill()
-
+    df = df.drop(columns=['rolling_mean', 'std_dev', 'zscore'])
     return df
