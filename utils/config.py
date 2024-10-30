@@ -40,6 +40,31 @@ GOOD_DATE_MAP = {'ADANIENT': datetime(2007, 1, 1),
                  'HINDUNILVR': datetime(2003, 1, 1),
                  'ICICIBANK': datetime(2003, 1, 1),
                  'INDUSINDBK': datetime(2003, 1, 1),
+'INFY': datetime(2003, 1, 1), #2003 - biggest fall ,2017 - CEO Resigned - 9% fall,2019 - 16.2% fall ,https://x.com/SumitResearch/status/1780938157413797988
+                 'ITC': datetime(2003, 1, 1),
+                 'JSWSTEEL': datetime(2004, 1, 1), #IPO in may 2003
+                 'KOTAKBANK': datetime(2003, 1, 1),
+                 'LT': datetime(2005, 1, 1), # relisted in 2004
+                 'M&M': datetime(2004, 1, 1),
+                 'MARUTI': datetime(2004, 1, 1),
+                 'NESTLEIND': datetime(2010, 1, 1), # Prices missing from 2004 (duplicated prices)
+                 'NTPC': datetime(2005, 1, 1),
+                 'ONGC': datetime(2003, 1, 1),
+                 'POWERGRID': datetime(2008, 1, 1), # listed in 2007
+                 'RELIANCE': datetime(2003, 1, 1),
+                 'SBILIFE': datetime(2018, 1, 1), # listed in 2017
+                 'SBIN': datetime(2003, 1, 1),
+                 'SHRIRAMFIN': datetime(2003, 1, 1),
+                 'SUNPHARMA': datetime(2003, 1, 1),
+                 'TATACONSUM': datetime(2003, 1, 1),
+                 'TATAMOTORS': datetime(2003, 1, 1),
+                 'TATASTEEL': datetime(2003, 1, 1),
+                 'TCS': datetime(2005, 1, 1), # listed in 2004
+                 'TECHM': datetime(2007, 1, 1), # listed in 2007
+                 'TITAN': datetime(2003, 1, 1),
+                 'TRENT': datetime(2003, 1, 1),
+                 'ULTRACEMCO': datetime(2005, 1, 1),# listed in 2004
+                 'WIPRO': datetime(2003, 1, 1),
                  }
 
 NSE_INDEX_MASTER = {
