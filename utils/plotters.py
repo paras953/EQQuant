@@ -71,6 +71,7 @@ def multi_bar_plot(df:pd.DataFrame,x_column:str,y_column_list:List[str],data_typ
     ax.set_ylabel(data_type)
     ax.set_xticks(x)
     ax.set_xticklabels(df[x_column],rotation=90)
+
     ax.legend(title="Period")
     ax.grid(visible=True, which='major', axis='y', alpha=0.2, color='r')
     ax.set_title(title)

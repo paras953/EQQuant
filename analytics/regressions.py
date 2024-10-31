@@ -3,6 +3,7 @@ import os
 import numpy as np
 import statsmodels.api as sm
 from typing import Dict
+
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from numpy.ma.extras import average
@@ -12,6 +13,7 @@ from utils.config import YFINANCE_PRICES_PATH, Columns, ALL_RESULTS_PATH
 from utils.plotters import multi_bar_plot, combine_plot
 from data.NSEDataAccess import NSEMasterDataAccess
 from signals.momentum.momentum_signals import moving_average_crossover,timeseries_momentum,ADX,RSI
+
 
 
 def run_linear_regression(df: pd.DataFrame, x_column: str, y_column: str) -> Dict:
@@ -36,8 +38,10 @@ def run_linear_regression(df: pd.DataFrame, x_column: str, y_column: str) -> Dic
     return output_dict
 
 
+
 def plot_linear_regression_stats(data_dict: Dict[str, pd.DataFrame], x_column: str, y_column: str,
                                  output_path: str, file_name: str, **kwargs) -> pd.DataFrame:
+
     """
     :param data_dict: dict having key as stock symbol and
     :param x_column: independent variable of the regression
@@ -74,6 +78,7 @@ def plot_linear_regression_stats(data_dict: Dict[str, pd.DataFrame], x_column: s
     df = pd.DataFrame({'symbol': symbol_list, 'period': period_list, 'tstat': tstat_list, 'coeff': coeff_list,
                        'rsq_adj': rsq_adj_list, 'rsq': rsq_list})
     if kwargs.get('plot', True):
+
         pivot_df = pd.pivot_table(data=df, values='tstat', columns='period', index='symbol').sort_index()
         symbol_list = sorted(data_dict.keys())
         fig_list = []
@@ -84,10 +89,12 @@ def plot_linear_regression_stats(data_dict: Dict[str, pd.DataFrame], x_column: s
                                  title=f'{x_column} ~ {y_column}')
             fig_list.append(fig)
         combine_plot(fig_list=fig_list, output_path=output_path, file_name=file_name)
+
     return df
 
 
 if __name__ == '__main__':
+
     nse_data = NSEMasterDataAccess(output_path=YFINANCE_PRICES_PATH)
     symbol_list = sorted(nse_data.get_index_constituents(index_name='NIFTY 50'))
     signal_name = ''
@@ -145,3 +152,4 @@ if __name__ == '__main__':
     plot_linear_regression_stats(data_dict=data_dict, x_column=signal_name, y_column='vol_adjusted_returns',
                                  output_path=output_path, file_name=f'{signal_name}_results_nifty_50_adx_{use_adx}_{low_adx_cut_off}_{high_adx_cut_off}_pooled_{pooled}')
     print(f'Mean ADX for given scenario {np.array(adx_stats).mean()}')
+

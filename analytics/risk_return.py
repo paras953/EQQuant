@@ -21,6 +21,7 @@ def get_volatility(prices:pd.DataFrame,price_column:str=Columns.ADJ_CLOSE.value)
     """
     prices['returns'] = prices[price_column].pct_change()
     prices['volatility'] = prices['returns'].ewm(span=33,min_periods=33).std(bias=True)
+
     first_valid_index = prices['volatility'].first_valid_index()
     prices = prices.truncate(first_valid_index)
     return prices[['volatility']]
