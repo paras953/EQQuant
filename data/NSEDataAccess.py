@@ -13,7 +13,6 @@ from utils.config import NSEPYTHON_PRICES_PATH, Columns, GOOD_DATE_MAP, \
 from utils.pandas_utils import clean_prices
 
 
-# TODO : add basic price cleaning function
 class NSEMasterDataAccess():
     def __init__(self, output_path: str):
         self.yfinance_prices_path = f'{YFINANCE_PRICES_PATH}/prices/'
