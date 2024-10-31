@@ -45,3 +45,49 @@ def clean_prices(df: pd.DataFrame, column: str, window_size: int = 11, threshold
     df[Columns.ADJ_CLOSE.value] = df[Columns.ADJ_CLOSE.value].ffill()
     df = df.drop(columns=['rolling_mean', 'std_dev', 'zscore'])
     return df
+
+
+def custom_rolling_mean(series: pd.Series, lookback: int) -> pd.Series:
+    """
+    :param series: any pandas series
+    :param lookback: lookback to calculate the average
+    :return:
+    """
+    # Initialize an array to store results, starting with NaNs
+    result = np.full(len(series), np.nan)
+
+    # Compute the first value as the simple rolling mean with a full window of `x`
+    if len(series) >= lookback:
+        result[lookback - 1] = series[:lookback].mean()  # Only set the mean after we have `x` elements
+
+    # Compute the rest using the custom formula
+    for i in range(lookback, len(series)):
+        result[i] = (result[i - 1] * (lookback - 1) + series[i]) / lookback
+
+    return pd.Series(result, index=series.index)
+
+
+def custom_rolling_sum(series: pd.Series, lookback: int) -> pd.Series:
+    """
+    Used to calculate TA Lib implementation of Average True Range, Smooth Positive Directional Movement
+    Smoothed Negative Directional Movement
+    :param series: any pandas series
+    :param lookback: lookback to calculate the average
+    :return: the smoothed value as used by TA lib PLUS_DI and MINUS_DI indicators
+    """
+    # Initialize an array to store results, starting with NaNs
+    result = np.full(len(series), np.nan)
+
+    # Compute the first value as the simple rolling mean with a full window of `x`
+    if len(series) >= lookback:
+        result[lookback - 1] = series[:lookback].sum()  # Only set the mean after we have `x` elements
+
+    # Compute the rest using the custom formula
+    for i in range(lookback, len(series)):
+        prev_value = result[i-1]
+        rolling_avg_prev_value = pd.Series(series[:i]).rolling(window=lookback,min_periods=lookback).mean().iloc[-1]
+        result[i] = prev_value - rolling_avg_prev_value + series[i]
+
+    return pd.Series(result, index=series.index)
+
+

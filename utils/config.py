@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 
 
-repo_root = '../..'
+repo_root = 'C:/Users/paras/PycharmProjects/EQQuant/' # make sure to add the repo root here
 
 
 NSEPYTHON_PRICES_PATH = f'{repo_root}/additional_data/'
@@ -14,6 +14,7 @@ YFINANCE_PRICES_PATH = f'{repo_root}/additional_data/yfinance_data/'
 # src : https://www.nseindia.com/companies-listing/corporate-filings-actions
 CORPORATE_ACTIONS_PATH = f'{repo_root}/additional_data/NSE_CORPORATE_ACTIONS-01-01-2002-to-25-09-2024.csv'
 DIVIDEND_PATH = f'{repo_root}/additional_data/DIVIDENDS-01-01-2002-to-07-10-2024.csv'
+ALL_RESULTS_PATH = f'{repo_root}/res'
 
 GOOD_DATE_MAP = {'ADANIENT': datetime(2007, 1, 1),
                  'ADANIPORTS': datetime(2008, 1, 1),

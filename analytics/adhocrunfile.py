@@ -1,12 +1,15 @@
 import pandas as pd
 import yfinance as yf
 import os
-
+import numpy as np
 from yfinance.utils import auto_adjust
 
+
+
+
 if __name__ == '__main__':
-    symbol = 'SBIN'
-    yf_ticker = symbol + ".NS"
-    ticker = yf.Ticker(yf_ticker)
-    hist_prices = ticker.history(start='2014-11-01',end='2014-11-30',auto_adjust=False,period='1d',back_adjust=False)
-    print('hello')
+    data = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])  # Example data
+    x = 3  # Window size
+
+    data_rolling = custom_rolling_mean(data, x)
+    print(data_rolling)
