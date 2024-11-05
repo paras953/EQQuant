@@ -12,8 +12,8 @@ from analytics.risk_return import get_returns, get_volatility
 from utils.config import YFINANCE_PRICES_PATH, Columns, ALL_RESULTS_PATH
 from utils.plotters import multi_bar_plot, combine_plot
 from data.NSEDataAccess import NSEMasterDataAccess
-from signals.momentum.momentum_signals import moving_average_crossover,timeseries_momentum,ADX,RSI
-
+from signals.momentum.momentum_signals import moving_average_crossover, timeseries_momentum, ADX, RSI, TALIB_ADX, \
+    TALIB_PPO
 
 
 def run_linear_regression(df: pd.DataFrame, x_column: str, y_column: str) -> Dict:
@@ -98,27 +98,28 @@ if __name__ == '__main__':
     nse_data = NSEMasterDataAccess(output_path=YFINANCE_PRICES_PATH)
     symbol_list = sorted(nse_data.get_index_constituents(index_name='NIFTY 50'))
     signal_name = ''
-    output_path = f'{ALL_RESULTS_PATH}/regression_results/'
+    output_path = f'{ALL_RESULTS_PATH}/regression_results_v2/'
     data_dict = {}
-    slow = 32
-    fast = 8
+    slow = 12
+    fast = 26
     adx_lookback = 14
     vol_adjusted = True
     use_adx = True
-    low_adx_cut_off = 0
-    high_adx_cut_off = 25
+    low_adx_cut_off = 25
+    high_adx_cut_off = 100
     adx_stats = []
     tsmom_lookback = 10
-    pooled = True
+    pooled = False
+
     for symbol in symbol_list:
         prices = nse_data.get_prices(symbol=symbol, start_date=datetime(2002, 1, 1), end_date=datetime(2024, 12, 31))
         returns = get_returns(prices=prices)
         vol = get_volatility(prices=prices)
         data = pd.concat([returns, vol], axis=1)
         data['vol_adjusted_returns'] = data['returns'] / data['volatility']
-        signal_df, signal_name = moving_average_crossover(prices=prices, slow_window=slow, fast_window=fast,
-                                             column_name=Columns.ADJ_CLOSE.value)
-
+        # signal_df, signal_name = moving_average_crossover(prices=prices, slow_window=slow, fast_window=fast,
+        #                                      column_name=Columns.ADJ_CLOSE.value)
+        signal_df, signal_name = TALIB_PPO(prices=prices,slow=slow,fast=fast)
         # signal_df, signal_name = timeseries_momentum(prices=prices,column_name=Columns.ADJ_CLOSE.value,lookback_window=tsmom_lookback)
         # signal_df ,signal_name = ADX(prices=prices,average_type='simple',average_window=adx_lookback)
         # signal_df, signal_name = RSI(prices=prices, average_type='exponential', lookback_window=adx_lookback,calculate_rsi_on='returns')
@@ -132,7 +133,7 @@ if __name__ == '__main__':
             data[signal_name] = data[signal_name].shift()
 
         if use_adx:
-            adx_df,adx = ADX(prices=prices,average_window=adx_lookback,average_type='exponential')
+            adx_df,adx = TALIB_ADX(prices=prices,average_window=adx_lookback)
             adx_df[adx] = adx_df[adx].shift() # use previous days adx for predictions
             data = pd.concat([data,adx_df],axis=1,join='inner')
             data = data.dropna()
