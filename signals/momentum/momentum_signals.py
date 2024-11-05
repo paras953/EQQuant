@@ -15,8 +15,6 @@ from typing import Tuple
 from utils.signal_helper import _get_adj_prices_helper
 
 
-
-
 def average_true_range(prices: pd.DataFrame, lookback: int) -> Tuple[pd.DataFrame, str]:
     """
     :param prices: a prices df having columns AdjHigh, AdjLow, AdjClose
@@ -100,12 +98,16 @@ def TALIB_ADX(prices: pd.DataFrame, average_window: int) -> Tuple[pd.DataFrame, 
     :param prices: prices df
     :param average_window: lookback of the ADX signal
     :return: the signal and name of the column
+
+    ADX ranges from 0 to 1
+    will multiply this value to any of the trend signals since it is essentially a trend strength indicator
     """
     prices = _get_adj_prices_helper(prices)
     prices = prices.ffill()  # if the prices are null TA LIB messes up
     prices[f'TALIB_ADX_{average_window}'] = ta.ADX(high=prices[Columns.ADJ_HIGH.value],
                                                    low=prices[Columns.ADJ_LOW.value],
                                                    close=prices[Columns.ADJ_CLOSE.value], timeperiod=average_window)
+    prices[f'TALIB_ADX_{average_window}'] /= 100
     return prices[[f'TALIB_ADX_{average_window}']], f'TALIB_ADX_{average_window}'
 
 
@@ -117,6 +119,8 @@ def TALIB_ADXR(prices: pd.DataFrame, average_window: int) -> Tuple[pd.DataFrame,
     :param prices:
     :param average_window:
     :return: ADXR implementation of TA LIB
+
+    Just a simple rolling average of ADX, again dividing the values by 100 so they are between 0 and 1
     """
     prices = _get_adj_prices_helper(prices)
     prices = prices.ffill()  # if the prices are null TA LIB messes up
@@ -124,6 +128,7 @@ def TALIB_ADXR(prices: pd.DataFrame, average_window: int) -> Tuple[pd.DataFrame,
                                                      low=prices[Columns.ADJ_LOW.value],
                                                      close=prices[Columns.ADJ_CLOSE.value],
                                                      timeperiod=average_window)
+    prices[[f'TALIB_ADXR_{average_window}']] /= 100
     return prices[[f'TALIB_ADXR_{average_window}']], f'TALIB_ADXR_{average_window}'
 
 
@@ -151,11 +156,13 @@ def TALIB_AROONOSC(prices: pd.DataFrame, lookback: int):
     :param prices:
     :param lookback: lookback for the signal
     :return:
+    Values between +1 and -1 can use directly as a signal
     """
     prices = _get_adj_prices_helper(prices)
     prices[f'TALIB_AROONOSC_{lookback}'] = ta.AROONOSC(high=prices[Columns.ADJ_HIGH.value],
                                                        low=prices[Columns.ADJ_LOW.value],
                                                        timeperiod=lookback)
+    prices[f'TALIB_AROONOSC_{lookback}'] = prices[f'TALIB_AROONOSC_{lookback}'] / 100
     return prices[[f'TALIB_AROONOSC_{lookback}']], f'TALIB_AROONOSC_{lookback}'
 
 
@@ -186,6 +193,7 @@ def TALIB_BOP(prices: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
     Balance of Power ta lib implementation
     :param prices: prices df
     :return:
+    Values are between +1 and -1 go long when positive and short when negative
     """
     prices = _get_adj_prices_helper(prices)
     prices['TALIB_BOP'] = ta.BOP(open=prices[Columns.ADJ_OPEN.value], high=prices[Columns.ADJ_HIGH.value],
@@ -199,12 +207,15 @@ def TALIB_CCI(prices: pd.DataFrame, lookback: int) -> Tuple[pd.DataFrame, str]:
     :param prices: prices df
     :param lookback:
     :return:
+    Values between +1 and -1 go long when +ve and short when -ve
     """
     prices = _get_adj_prices_helper(prices)
-    prices['TALIB_CCI'] = ta.CCI(high=prices[Columns.ADJ_HIGH.value],
-                                 low=prices[Columns.ADJ_LOW.value], close=prices[Columns.ADJ_CLOSE.value],
-                                 timeperiod=lookback)
-    return prices[['TALIB_CCI']], 'TALIB_CCI'
+    prices = prices.ffill()
+    prices[f'TALIB_CCI_{lookback}'] = ta.CCI(high=prices[Columns.ADJ_HIGH.value],
+                                             low=prices[Columns.ADJ_LOW.value], close=prices[Columns.ADJ_CLOSE.value],
+                                             timeperiod=lookback)
+    prices[f'TALIB_CCI_{lookback}'] = prices['TALIB_CCI'] * (0.15 / 100)
+    return prices[[f'TALIB_CCI_{lookback}']], f'TALIB_CCI_{lookback}'
 
 
 @timer
@@ -214,8 +225,12 @@ def TALIB_CMO(prices: pd.DataFrame, lookback: int, column: str = Columns.ADJ_CLO
     :param lookback: lookback of the signal
     :param column, which prices you want to use to calculate the signal
     :return:
+    Values are between +1 and -1 go long when +1 else go short
     """
+    prices = _get_adj_prices_helper(prices)
+    prices = prices.ffill()
     prices[f'TALIB_CMO_{lookback}'] = ta.CMO(real=prices[column], timeperiod=lookback)
+    prices[f'TALIB_CMO_{lookback}'] /= 100
     return prices[[f'TALIB_CMO_{lookback}']], f'TALIB_CMO_{lookback}'
 
 
@@ -225,11 +240,14 @@ def TALIB_MFI(prices: pd.DataFrame, lookback: int) -> Tuple[pd.DataFrame, str]:
     :param prices: prices df
     :param lookback: lookback of the signal
     :return:
+    Values above 0.8 means overbought conditions and below 0.2 means oversold conditions
+    but unclear how to use this as a predictive signals
     """
     prices = _get_adj_prices_helper(prices)
     prices[f'TALIB_MFI_{lookback}'] = ta.MFI(high=prices[Columns.ADJ_HIGH.value],
                                              low=prices[Columns.ADJ_LOW.value], close=prices[Columns.ADJ_CLOSE.value],
                                              volume=prices[Columns.VOLUME.value], timeperiod=lookback)
+    prices[f'TALIB_MFI_{lookback}'] /= 100
     return prices[[f'TALIB_MFI_{lookback}']], f'TALIB_MFI_{lookback}'
 
 
@@ -240,9 +258,12 @@ def TALIB_PPO(prices: pd.DataFrame, slow: int, fast: int, column: str = Columns.
     PPO is actually (f-s/s)
     :param prices: prices df
     :return:
+    Values between -1 and +1 go long if value is +ve or go short if value is -ve
     """
     # matype = 1 is exponential moving average
+    prices = _get_adj_prices_helper(prices)
     prices[f'TALIB_PPO_{fast}_{slow}'] = ta.PPO(real=prices[column], slowperiod=slow, fastperiod=fast, matype=1)
+    prices[f'TALIB_PPO_{fast}_{slow}'] /= 100
     return prices[[f'TALIB_PPO_{fast}_{slow}']], f'TALIB_PPO_{fast}_{slow}'
 
 
@@ -254,8 +275,12 @@ def TALIB_RSI(prices: pd.DataFrame, lookback: int, column: str = Columns.ADJ_CLO
     :param lookback: lookback of the signal
     :param column:
     :return:
+    Values are between 0 and 1, RSI<0.2 means oversold and RSI>0.8 means overbought,
+    will have to use this signal in combination with pure momentum indicators
     """
+    prices = _get_adj_prices_helper(prices)
     prices[f'TALIB_RSI_{lookback}'] = ta.RSI(real=prices[column], timeperiod=lookback)
+    prices[f'TALIB_RSI_{lookback}'] /= 100
     return prices[[f'TALIB_RSI_{lookback}']], f'TALIB_RSI_{lookback}'
 
 
@@ -270,21 +295,24 @@ def TALIB_STOCH(prices: pd.DataFrame, fastk_period: int, slowk_period: int, slow
     :param slowk: slow k lookback
     :param slowd: slow d lookback
     :return:
+    slowk,slowd values between 0 and 1
+    and combined lies between -1 and +1
+    Signal to be used in combination with other momentum signals
     """
     if signal_type not in ['slowk', 'slowd', 'combined']:
         raise ValueError('Signal type has to be one of slowk, slowd or combined')
 
-    signal_name = f'TALIB_RSI_{signal_type}_{fastk_period}_{slowk_period}_{slowd_period}'
+    signal_name = f'TALIB_STOCH_{signal_type}_{fastk_period}_{slowk_period}_{slowd_period}'
     prices = _get_adj_prices_helper(prices)
     slowk, slowd = ta.STOCH(high=prices[Columns.ADJ_HIGH.value], low=prices[Columns.ADJ_LOW.value],
                             close=prices[Columns.ADJ_CLOSE.value], fastk_period=fastk_period,
                             slowk_period=slowk_period, slowd_period=slowd_period, slowk_matype=1, slowd_matype=1)
     if signal_type == 'slowk':
-        prices[signal_name] = slowk
+        prices[signal_name] = slowk / 100
     elif signal_type == 'slowd':
-        prices[signal_name] = slowd
+        prices[signal_name] = slowd / 100
     else:
-        prices[signal_name] = (slowk - slowd) / slowk
+        prices[signal_name] = (slowk - slowd) / 100
 
     return prices[[signal_name]], signal_name
 
@@ -298,6 +326,9 @@ def TALIB_STOCHF(prices: pd.DataFrame, fastk_period: int, fastd_period: int, sig
     :param fastd:
     :param signal_type:
     :return:
+    fastk,fastd values between 0 and 1
+    and combined lies between -1 and +1
+    Signal to be used in combination with other momentum signals
     """
     prices = _get_adj_prices_helper(prices)
     fastk, fastd = ta.STOCHF(high=prices[Columns.ADJ_HIGH.value], low=prices[Columns.ADJ_LOW.value],
@@ -307,11 +338,11 @@ def TALIB_STOCHF(prices: pd.DataFrame, fastk_period: int, fastd_period: int, sig
     if signal_type not in ['fastk', 'fastd', 'combined']:
         raise ValueError(f'signal_type should be one of fastk,fastd or combined you passed {signal_type}')
     if signal_type == 'fastk':
-        prices[signal_name] = fastk
+        prices[signal_name] = fastk / 100
     elif signal_type == 'fastd':
-        prices[signal_name] = fastd
+        prices[signal_name] = fastd / 100
     else:
-        prices[signal_name] = (fastk - fastd) / fastk
+        prices[signal_name] = (fastk - fastd) / 100
 
     return prices[[signal_name]], signal_name
 
@@ -329,19 +360,22 @@ def TALIB_STOCHRSI(prices: pd.DataFrame, lookback: int, fastk_period: int, fastd
     :param column : which prices you want to create signal on
     :param signal_type:
     :return:
+    values between 0 to 1 for fastk,fastd not value gretaer than 0.8 means overbought and less than 0.2 means oversold,
+    to use in combination with other momentum signals
     """
     prices = _get_adj_prices_helper(prices)
+    prices = prices.ffill()
     fastk, fastd = ta.STOCHRSI(real=prices[column], timeperiod=lookback, fastk_period=fastk_period,
                                fastd_period=fastd_period, fastd_matype=1)
     signal_name = f'TALIB_STOCHRSI_{signal_type}_{fastk_period}_{fastd_period}'
     if signal_type not in ['fastk', 'fastd', 'combined']:
         raise ValueError(f'signal_type should be one of fastk,fastd or combined you passed {signal_type}')
     if signal_type == 'fastk':
-        prices[signal_name] = fastk
+        prices[signal_name] = fastk / 100
     elif signal_type == 'fastd':
-        prices[signal_name] = fastd
+        prices[signal_name] = fastd / 100
     else:
-        prices[signal_name] = (fastk - fastd) / fastk
+        prices[signal_name] = (fastk - fastd) / 100
 
     return prices[[signal_name]], signal_name
 
@@ -354,31 +388,40 @@ def TALIB_ULTOSC(prices: pd.DataFrame, lookback_1: int, lookback_2: int, lookbac
     :param lookback_2: lookback 2
     :param lookback_3: lookback 3
     :return:
+    values between 0 and 1 value < 0.2 means oversold and value>0.8 means overbought, need to use it
+    in combination with other momentum signals
     """
     prices = _get_adj_prices_helper(prices)
+    prices = prices.ffill()
     prices[f'TALIB_ULTOSC_{lookback_1}_{lookback_2}_{lookback_3}'] = ta.ULTOSC(high=prices[Columns.ADJ_HIGH.value],
                                                                                low=prices[Columns.ADJ_LOW.value],
                                                                                close=prices[Columns.ADJ_CLOSE.value],
                                                                                timeperiod1=lookback_1,
                                                                                timeperiod2=lookback_2,
                                                                                timeperiod3=lookback_3)
+    prices[f'TALIB_ULTOSC_{lookback_1}_{lookback_2}_{lookback_3}'] /= 100
     return prices[[
         f'TALIB_ULTOSC_{lookback_1}_{lookback_2}_{lookback_3}']], f'TALIB_ULTOSC_{lookback_1}_{lookback_2}_{lookback_3}'
 
 
 @timer
-def TALIB_WILLR(prices:pd.DataFrame,lookback:int):
+def TALIB_WILLR(prices: pd.DataFrame, lookback: int):
     """
     :param prices: prices df
     :param lookback: lookback of the signal
     :return:
+    Between -1 and 0 value<-0.8 meaning oversold conditions and value>-0.2 means overbought conditions
+    can use in conjunction with momentum signals
     """
     prices = _get_adj_prices_helper(prices)
+    prices = prices.ffill()
     prices[f'TALIB_WILLR_{lookback}'] = ta.WILLR(high=prices[Columns.ADJ_HIGH.value],
                                                  low=prices[Columns.ADJ_LOW.value],
                                                  close=prices[Columns.ADJ_CLOSE.value],
                                                  timeperiod=lookback)
-    return prices[[f'TALIB_WILLR_{lookback}']],f'TALIB_WILLR_{lookback}'
+    prices[f'TALIB_WILLR_{lookback}']/=100
+    return prices[[f'TALIB_WILLR_{lookback}']], f'TALIB_WILLR_{lookback}'
+
 
 @timer
 def moving_average_crossover(prices: pd.DataFrame, column_name: str, slow_window: int, fast_window: int,
@@ -478,16 +521,16 @@ if __name__ == '__main__':
     # aroonosc, _ = TALIB_AROONOSC(prices=prices, lookback=5)
     # aroonup, _ = TALIB_AROONUPDOWN(prices=prices, lookback=5, signal_type='UP')
     # aroondown, _ = TALIB_AROONUPDOWN(prices=prices, lookback=5, signal_type='DOWN')
+    # bop,_ = TALIB_BOP(prices=prices)
     # cci, _ = TALIB_CCI(prices=prices, lookback=20)
     # cmo, _ = TALIB_CMO(prices=prices, lookback=20)
     # mfi, _ = TALIB_MFI(prices=prices, lookback=14)
-    # ppo,_ = TALIB_PPO(prices=prices,slow=64,fast=16)
-    # rsi, _ = TALIB_RSI(prices=prices, lookback=20)
-    # combined, _ = TALIB_STOCH(prices=prices, fastk_period=25, slowk_period=5, slowd_period=5, signal_type='combined')
-    # combined, _ = TALIB_STOCHF(prices=prices, fastk_period=20, fastd_period=10)
-    # combined,_ = TALIB_STOCHRSI(prices=prices, lookback=25, fastk_period=14, fastd_period=3, signal_type='fastk')
-    # ultosc,_ = TALIB_ULTOSC(prices=prices,lookback_1=22,lookback_2=66,lookback_3=99)
+    # ppo, _ = TALIB_PPO(prices=prices, slow=64, fast=16)
+    # rsi, _ = TALIB_RSI(prices=prices, lookback=14)
+    # slowk, _ = TALIB_STOCH(prices=prices, fastk_period=25, slowk_period=5, slowd_period=5, signal_type='combined')
+    # fastd, _ = TALIB_STOCHF(prices=prices, fastk_period=25, fastd_period=5, signal_type='combined')
+    # combined,_ = TALIB_STOCHRSI(prices=prices, lookback=14, fastk_period=14, fastd_period=3, signal_type='fastk')
+    # ultosc, _ = TALIB_ULTOSC(prices=prices, lookback_1=22, lookback_2=66, lookback_3=99)
     willr,_ = TALIB_WILLR(prices=prices,lookback=25)
 
     print('hello')
-
