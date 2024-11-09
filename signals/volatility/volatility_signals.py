@@ -3,7 +3,9 @@ from typing import Tuple
 from utils.signal_helper import _get_adj_prices_helper
 import pandas as pd
 import talib as ta
+from utils.decorators import timer
 
+@timer
 def TALIB_ATR(prices: pd.DataFrame, average_window: int = 14) -> Tuple[pd.DataFrame, str]:
     """
     :param average_window: lookback of the ATR signal
@@ -18,7 +20,7 @@ def TALIB_ATR(prices: pd.DataFrame, average_window: int = 14) -> Tuple[pd.DataFr
                                       timeperiod=average_window)
     return prices[['TALIB_ATR']], 'TALIB_ATR'
 
-
+@timer
 def TALIB_NATR(prices: pd.DataFrame, average_window: int = 14) -> Tuple[pd.DataFrame, str]:
     """
     :param average_window: lookback of the NATR signal
@@ -33,7 +35,7 @@ def TALIB_NATR(prices: pd.DataFrame, average_window: int = 14) -> Tuple[pd.DataF
                                       timeperiod=average_window)
     return prices[['TALIB_NATR']], 'TALIB_NATR'
 
-
+@timer
 def TALIB_TRANGE(prices: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
     """
     :param prices: prices df
