@@ -7,6 +7,7 @@ from datetime import datetime
 import yfinance as yf
 import os
 from pandas.tseries.offsets import BDay
+from collections import defaultdict
 from utils.decorators import timer
 from utils.config import NSEPYTHON_PRICES_PATH, Columns, GOOD_DATE_MAP, \
     YFINANCE_PRICES_PATH, NSE_INDEX_MASTER
@@ -282,17 +283,42 @@ class NSEMasterDataAccess():
         ticker_metadata = self.extractTickerMasterData(index_name=index_name)
         return list(set(ticker_metadata['symbol']))
 
+    def get_prices_multiple_assets(self, symbol_list: List[str], period: Tuple[datetime, datetime]) -> Dict[
+        str, pd.DataFrame]:
+        """
+        :param symbol_list: list of tickers for which you want prices
+        :param period: a tuple of start and end date
+        :return: returns prices of multiple assets in a dict @ open,close,high,low,AdjClose
+        """
+        execution_prices = [Columns.OPEN.value, Columns.CLOSE.value, Columns.HIGH.value, Columns.LOW.value]
+        output_dict = defaultdict(list)
+        all_prices_dict = {}
+        for symbol in symbol_list:
+            price_df = self.get_prices(symbol=symbol, start_date=period[0], end_date=period[-1])
+            for price_type in execution_prices:
+                price_type_df = price_df[[price_type]].rename(columns={price_type: symbol})
+                output_dict[price_type].append(price_type_df)
+
+        for price_type in execution_prices:
+            df = pd.concat(output_dict[price_type], axis=1)
+            all_prices_dict[price_type] = df
+
+        return all_prices_dict
+
 
 if __name__ == '__main__':
     nse_data_access = NSEMasterDataAccess(output_path=YFINANCE_PRICES_PATH)
     ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50')  # downloading nifty 50 stocks
-    ticker_list = sorted(ticker_list)
+    ticker_list = ['BAJAJFINSV']
+    period = (datetime(2002, 1, 1), datetime(2024, 12, 31))
+    prices_dict = nse_data_access.get_prices_multiple_assets(symbol_list=ticker_list,period=period)
+    print('Hello')
     # ticker_list = ['RELIANCE']
-    year_list = [i for i in range(2007, 2025)]
-    for ticker in ticker_list:
-        for year in year_list:
-            prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
-                                                                end_date=datetime(year, 12, 31))
+    # year_list = [i for i in range(2007, 2025)]
+    # for ticker in ticker_list:
+    #     for year in year_list:
+    #         prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
+    #                                                             end_date=datetime(year, 12, 31))
 
     # for ticker in ticker_list:
     #     prices = nse_data_access.get_prices(symbol=ticker, start_date=datetime(2002, 1, 1),
