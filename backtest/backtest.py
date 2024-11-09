@@ -10,10 +10,9 @@ from data.NSEDataAccess import NSEMasterDataAccess
 from utils.config import YFINANCE_PRICES_PATH, Columns
 
 
-def backtest(weights: pd.DataFrame, prices_dict: Dict[str, pd.DataFrame]):
+def backtest(weights: pd.DataFrame):
     """
     :param weights: same day portfolio weights  i.e executed at prev
-    :param prices_dict prices at open,close
     :return: daily gross (will build net return later) return executed @ prev,next day open and close
     """
     period = (weights.index.min() - relativedelta(days=5), weights.index.max())
@@ -21,7 +20,6 @@ def backtest(weights: pd.DataFrame, prices_dict: Dict[str, pd.DataFrame]):
     prices_dict = nse_data_access.get_prices_multiple_assets(
         symbol_list=list(weights.columns), period=period)
 
-    portfolio_returns_dict = {}
     # returns @ prev close
     intraday_returns_dict = get_intraday_returns(open_prices=prices_dict[Columns.OPEN.value],
                                                  close_prices=prices_dict[Columns.CLOSE.value])
@@ -33,8 +31,7 @@ def backtest(weights: pd.DataFrame, prices_dict: Dict[str, pd.DataFrame]):
     portfolio_return_at_prev_close = pd.DataFrame(portfolio_return_contribution_at_prev_close.sum(axis=1))
     portfolio_return_at_prev_close.columns = ['portfolio_return']
 
-    intraday_returns_dict = get_intraday_returns(open_prices=prices_dict[Columns.OPEN.value],
-                                                 close_prices=prices_dict[Columns.CLOSE.value])
+
     ppw_weights_dict = get_ppw_weights(weights=weights, intraday_returns_dict=intraday_returns_dict)
     next_day_bod_weights = ppw_weights_dict['next_day_bod'].copy()
     next_day_eod_weights = ppw_weights_dict['next_day_eod'].copy()
