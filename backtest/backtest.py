@@ -5,17 +5,19 @@ import numpy as np
 import pandas as pd
 from typing import Dict
 
-from analytics.risk_return import get_asset_returns, get_intraday_returns
+from analytics.risk_return import get_intraday_returns
 from data.NSEDataAccess import NSEMasterDataAccess
 from utils.config import YFINANCE_PRICES_PATH, Columns
+from utils.decorators import timer
 
 
+@timer
 def backtest(weights: pd.DataFrame):
     """
     :param weights: same day portfolio weights  i.e executed at prev
     :return: daily gross (will build net return later) return executed @ prev,next day open and close
     """
-    period = (weights.index.min() - relativedelta(days=5), weights.index.max())
+    period = (weights.index.min() - relativedelta(years=1), weights.index.max())
     nse_data_access = NSEMasterDataAccess(YFINANCE_PRICES_PATH)
     prices_dict = nse_data_access.get_prices_multiple_assets(
         symbol_list=list(weights.columns), period=period)
@@ -31,8 +33,7 @@ def backtest(weights: pd.DataFrame):
     portfolio_return_at_prev_close = pd.DataFrame(portfolio_return_contribution_at_prev_close.sum(axis=1))
     portfolio_return_at_prev_close.columns = ['portfolio_return']
 
-
-    ppw_weights_dict = get_ppw_weights(weights=weights, intraday_returns_dict=intraday_returns_dict)
+    ppw_weights_dict = get_post_performance_weights(weights=weights, intraday_returns_dict=intraday_returns_dict)
     next_day_bod_weights = ppw_weights_dict['next_day_bod'].copy()
     next_day_eod_weights = ppw_weights_dict['next_day_eod'].copy()
 
@@ -48,25 +49,43 @@ def backtest(weights: pd.DataFrame):
     portfolio_return_at_close = pd.DataFrame(portfolio_return_contribution_at_close.sum(axis=1))
     portfolio_return_at_close.columns = ['portfolio_return']
 
+    new_period = (weights.index.min(), weights.index.max())
+
+    portfolio_return_contribution_at_prev_close = portfolio_return_contribution_at_prev_close.truncate(new_period[0],
+                                                                                                       new_period[-1])
+    portfolio_return_at_prev_close = portfolio_return_at_prev_close.truncate(new_period[0], new_period[-1])
+
+    portfolio_return_contribution_at_open = portfolio_return_contribution_at_open.truncate(new_period[0],
+                                                                                           new_period[-1])
+    portfolio_return_at_open = portfolio_return_at_open.truncate(new_period[0], new_period[-1])
+
+    portfolio_return_contribution_at_close = portfolio_return_contribution_at_close.truncate(new_period[0],
+                                                                                             new_period[-1])
+    portfolio_return_at_close = portfolio_return_at_close.truncate(new_period[0], new_period[-1])
+
     return {'gross': {
-        'prev': {'prc': portfolio_return_contribution_at_prev_close,
+        'prev': {'portfolio_return_contribution': portfolio_return_contribution_at_prev_close,
                  'portfolio_return': portfolio_return_at_prev_close},
-        'open': {'prc': portfolio_return_contribution_at_open, 'portfolio_return': portfolio_return_at_open},
-        'close': {'prc': portfolio_return_contribution_at_close, 'portfolio_return': portfolio_return_at_close},
+        'open': {'portfolio_return_contribution': portfolio_return_contribution_at_open,
+                 'portfolio_return': portfolio_return_at_open},
+        'close': {'portfolio_return_contribution': portfolio_return_contribution_at_close,
+                  'portfolio_return': portfolio_return_at_close},
     }
     }
 
 
-def get_ppw_weights(weights: pd.DataFrame, intraday_returns_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+@timer
+def get_post_performance_weights(weights: pd.DataFrame, intraday_returns_dict: Dict[str, pd.DataFrame]) -> Dict[
+    str, pd.DataFrame]:
     """
     :param weights: same day EOD weights which will be executed in prev
     :param intraday_returns_dict: has OpenToClose and CloseToOpen returns for each asset
     :return: ppw weights dataframe
     """
-    close_to_open_returns = intraday_returns_dict['prev_day_close_to_open_returns'].copy()
+    prev_close_to_open_returns = intraday_returns_dict['prev_day_close_to_open_returns'].copy()
     open_to_close_returns = intraday_returns_dict['open_to_close_returns'].copy()
 
-    portfolio_return_contribution_close_to_open = weights.shift() * close_to_open_returns
+    portfolio_return_contribution_close_to_open = weights.shift() * prev_close_to_open_returns
     portfolio_returns_close_to_open = pd.DataFrame(portfolio_return_contribution_close_to_open.sum(axis=1))
     portfolio_returns_close_to_open.columns = ['portfolio_return']
     next_day_bod_weights = weights.shift() * (1 + portfolio_return_contribution_close_to_open)
@@ -90,5 +109,4 @@ if __name__ == '__main__':
     df = pd.DataFrame(np.random.random_sample(size=(len(prices_dict['Open'].index), len(symbol_list))),
                       index=prices_dict['Open'].index, columns=symbol_list)
     df = df.div(df.sum(axis=1), axis=0)
-
-    ret_dict = backtest(weights=df, prices_dict=prices_dict)
+    ret_dict = backtest(weights=df)
