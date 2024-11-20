@@ -51,9 +51,9 @@ def plot_prices(symbol: str, output_path: str, period: Tuple[datetime, datetime]
 if __name__=='__main__':
     output_path = '../EDA'
     file_list = sorted(os.listdir(f'{YFINANCE_PRICES_PATH}/prices/'))
-    file_list = file_list[0:25]
-    file_list = ['BEL']
-    period = (datetime(2002,1,1),datetime(2024,10,17))
+    # file_list = file_list[0:25]
+    file_list = ['NSEI']
+    period = (datetime(2002,1,1),datetime(2024,12,31))
     failed_symbol = []
     for file in file_list:
         symbol = file.split("_")[0]

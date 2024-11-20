@@ -110,7 +110,12 @@ class NSEMasterDataAccess():
             if not use_yfinance:
                 prices_data = equity_history(symbol, 'EQ', start_date_str, end_date_str)
             else:
-                ticker = yf.Ticker(f'{symbol}.NS')
+                if symbol == 'NSEI':
+                    # for nifty index prices
+                    ticker = yf.Ticker(f'^{symbol}')
+                else:
+                    ticker = yf.Ticker(f'{symbol}.NS')
+
                 prices_data = ticker.history(start=start_date_str, end=end_date_str, auto_adjust=False,
                                              period='1d', back_adjust=False)
 
@@ -192,7 +197,8 @@ class NSEMasterDataAccess():
                            'High': Columns.HIGH.value, 'Low': Columns.LOW.value, 'Adj Close': Columns.ADJ_CLOSE.value}
             prices_data = prices_data.rename(columns=rename_dict)
 
-        prices_data = clean_prices(df=prices_data, column=Columns.ADJ_CLOSE.value)
+        ignore_volume_flag = {'NSEI':True}.get(symbol,False) # for nifty pre 2013 all volume is 0
+        prices_data = clean_prices(df=prices_data, column=Columns.ADJ_CLOSE.value,ignore_volume = ignore_volume_flag)
         good_date = GOOD_DATE_MAP.get(symbol, datetime(2002, 1, 1))
         start_date = max(good_date, start_date)
         prices_data = prices_data.truncate(start_date, end_date)
@@ -309,16 +315,16 @@ class NSEMasterDataAccess():
 if __name__ == '__main__':
     nse_data_access = NSEMasterDataAccess(output_path=YFINANCE_PRICES_PATH)
     ticker_list = nse_data_access.get_index_constituents(index_name='NIFTY 50')  # downloading nifty 50 stocks
-    ticker_list = ['BAJAJFINSV']
+    ticker_list = ['NSEI']
     period = (datetime(2002, 1, 1), datetime(2024, 12, 31))
-    prices_dict = nse_data_access.get_prices_multiple_assets(symbol_list=ticker_list,period=period)
+    # prices_dict = nse_data_access.get_prices_multiple_assets(symbol_list=ticker_list,period=period)
     print('Hello')
     # ticker_list = ['RELIANCE']
-    # year_list = [i for i in range(2007, 2025)]
-    # for ticker in ticker_list:
-    #     for year in year_list:
-    #         prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
-    #                                                             end_date=datetime(year, 12, 31))
+    year_list = [i for i in range(2002, 2025)]
+    for ticker in ticker_list:
+        for year in year_list:
+            prices = nse_data_access.download_historical_prices(symbol=ticker, start_date=datetime(year, 1, 1),
+                                                                end_date=datetime(year, 12, 31))
 
     # for ticker in ticker_list:
     #     prices = nse_data_access.get_prices(symbol=ticker, start_date=datetime(2002, 1, 1),

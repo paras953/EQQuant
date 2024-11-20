@@ -214,7 +214,7 @@ def TALIB_CCI(prices: pd.DataFrame, lookback: int) -> Tuple[pd.DataFrame, str]:
     prices[f'TALIB_CCI_{lookback}'] = ta.CCI(high=prices[Columns.ADJ_HIGH.value],
                                              low=prices[Columns.ADJ_LOW.value], close=prices[Columns.ADJ_CLOSE.value],
                                              timeperiod=lookback)
-    prices[f'TALIB_CCI_{lookback}'] = prices['TALIB_CCI'] * (0.15 / 100)
+    prices[f'TALIB_CCI_{lookback}'] = prices[f'TALIB_CCI_{lookback}'] * (0.15 / 100)
     return prices[[f'TALIB_CCI_{lookback}']], f'TALIB_CCI_{lookback}'
 
 
@@ -419,8 +419,19 @@ def TALIB_WILLR(prices: pd.DataFrame, lookback: int):
                                                  low=prices[Columns.ADJ_LOW.value],
                                                  close=prices[Columns.ADJ_CLOSE.value],
                                                  timeperiod=lookback)
-    prices[f'TALIB_WILLR_{lookback}']/=100
+    prices[f'TALIB_WILLR_{lookback}'] /= 100
     return prices[[f'TALIB_WILLR_{lookback}']], f'TALIB_WILLR_{lookback}'
+
+
+@timer
+def HOLD(prices: pd.DataFrame, position: int = 1) -> Tuple[pd.DataFrame, str]:
+    """
+    :param prices: prices df
+    :param position: which position to hold
+    :return: returns the long/short only signal
+    """
+    prices[f'HOLD_{position}'] = position
+    return prices[[f'HOLD_{position}']], f'HOLD_{position}'
 
 
 @timer
@@ -531,6 +542,6 @@ if __name__ == '__main__':
     # fastd, _ = TALIB_STOCHF(prices=prices, fastk_period=25, fastd_period=5, signal_type='combined')
     # combined,_ = TALIB_STOCHRSI(prices=prices, lookback=14, fastk_period=14, fastd_period=3, signal_type='fastk')
     # ultosc, _ = TALIB_ULTOSC(prices=prices, lookback_1=22, lookback_2=66, lookback_3=99)
-    willr,_ = TALIB_WILLR(prices=prices,lookback=25)
+    willr, _ = TALIB_WILLR(prices=prices, lookback=25)
 
     print('hello')

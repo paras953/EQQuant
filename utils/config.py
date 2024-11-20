@@ -65,6 +65,7 @@ GOOD_DATE_MAP = {'ADANIENT': datetime(2007, 1, 1),
                  'TRENT': datetime(2003, 1, 1),
                  'ULTRACEMCO': datetime(2005, 1, 1),  # listed in 2004
                  'WIPRO': datetime(2003, 1, 1),
+                 'NSEI': datetime(2008, 1, 1) # nifty index, data is clean but only have data from 2007 sept so 2008 is the good date
                  }
 
 NSE_INDEX_MASTER = {
@@ -161,3 +162,7 @@ class Columns(Enum):
     ADJ_VWAP = 'AdjVWAP'
     VOLUME = 'Volume'
     TRADES = 'Trades'
+
+
+class Constants(Enum):
+    NOISE = 1e-8
