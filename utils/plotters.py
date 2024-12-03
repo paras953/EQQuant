@@ -77,3 +77,26 @@ def multi_bar_plot(df:pd.DataFrame,x_column:str,y_column_list:List[str],data_typ
     ax.set_title(title)
     plt.close(fig)
     return fig
+
+def plot_histogram(df:pd.DataFrame,column_name:str,title:str,bins:int=100)->plt.figure:
+    """
+
+    :param df: pandas df
+    :param column_name: column_name for which you want to plot the hist
+    :param title: title of the plot
+    :param bins: no of bins for histogram
+    :return: a histogram figure
+    """
+    # Create a figure and an axes object
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Plot the histogram using the `ax` object
+    ax.hist(df[column_name], bins=bins, color='blue', alpha=0.7, edgecolor='black')
+
+    # Add labels and a title
+    ax.set_title(title)
+    ax.set_xlabel(column_name)
+    ax.set_ylabel('Count')
+
+    plt.close(fig)
+    return fig

@@ -138,7 +138,6 @@ class PortfolioManager():
             return_series = pre_optimized_portfolio_return_contribution[
                             dates - relativedelta(days=optimization_lookback):dates]
             mean_return = expected_returns.mean_historical_return(prices=return_series, returns_data=True)
-            var_cov_matrix = risk_models.sample_cov(prices=return_series, returns_data=True)
             var_cov_matrix_ledoit_wolf = risk_models.CovarianceShrinkage(return_series, returns_data=True).ledoit_wolf()
 
             pre_op_weight_vector = positions.loc[dates]
@@ -150,17 +149,9 @@ class PortfolioManager():
                 weight_bounds_list.append((0, upper_bound))
 
             ef = EfficientFrontier(expected_returns=mean_return, cov_matrix=var_cov_matrix_ledoit_wolf,
-                                   weight_bounds = (0,np.inf))
+                                   weight_bounds = weight_bounds_list)
             # ef.add_objective(sum_product_constraint,pre_op_weight_vector=pre_op_weight_vector.values)
-
-            # total_weight = pre_op_weight_vector.sum()
-            ef.add_constraint(lambda w : np.dot(w,pre_op_weight_vector))
-            # for symbol in positions.columns:
-            #     ticker_index = ef.tickers.index(symbol)
-            #     limit = 1 / (
-            #             (non_zero_assets * pre_op_weight_vector[symbol]) + Constants.NOISE.value)
-            #     ef.add_constraint(lambda w: w[ticker_index]<=limit)
-
+            # ef.add_constraint(lambda w :w@pre_op_weight_vector==1)
 
             if self.config['allocation']['type'] == 'max_sharpe':
                 post_op_weight_vector = ef.max_sharpe(risk_free_rate=0.0)
@@ -175,21 +166,22 @@ class PortfolioManager():
             elif self.config['allocation']['type'] == 'efficient_return':
                 post_op_weight_vector = ef.efficient_return(
                     target_return=self.config['allocation']['portfolio_return_target'])
-
             elif self.config['allocation']['type'] == 'risk_parity':
-                # hrp = HRPOpt(return_series)
-                # hrp.optimize()
-                # post_op_weight_vector = hrp.clean_weights()
-                # hrp.portfolio_performance(verbose=True,risk_free_rate=0.0)
-                post_op_weight = risk_parity_with_target_vol(pre_opt_weights=pre_op_weight_vector.values,
-                                                             cov_matrix=var_cov_matrix,
-                                                             target_vol=self.config['allocation']['target_vol'])
-                post_op_weight_vector = dict(zip(positions.columns, post_op_weight))
+                hrp = HRPOpt(return_series)
+                hrp.optimize()
+                post_op_weight_vector = hrp.clean_weights()
+                hrp.portfolio_performance(verbose=True,risk_free_rate=0.0)
+                # post_op_weight = risk_parity_with_target_vol(pre_opt_weights=pre_op_weight_vector.values,
+                #                                              cov_matrix=var_cov_matrix_ledoit_wolf,
+                #                                              target_vol=self.config['allocation']['target_vol'])
+                # post_op_weight_vector = dict(zip(positions.columns, post_op_weight_vector))
             elif self.config['allocation']['type'] ==  'max_utility':
                 post_op_weight_vector = ef.max_quadratic_utility()
                 ef.portfolio_performance(verbose=True, risk_free_rate=0.0)
             else:
                 raise NotImplementedError('Other optimization techniques not implemented yet!')
+
+
             post_op_weight_vector["Date"] = dates
             post_op_weight_list.append(post_op_weight_vector)
 
@@ -226,23 +218,17 @@ if __name__ == '__main__':
     period = (datetime(2022, 6, 1), datetime(2023, 12, 31))
     nse_data = NSEMasterDataAccess(YFINANCE_PRICES_PATH)
     universe = nse_data.get_index_constituents('NIFTY 50')
-    # universe = universe[0:2]
-    # universe = ['SUNPHARMA', 'HCLTECH']
-    pf_config = {
+
+    CCI_1 = {
         'universe': universe,
         'signals': {
-            # 'TALIB_AROONOSC_1': {'signal_function': 'TALIB_AROONOSC', 'lookback': 33, 'budget': 0.25},
-            # 'TALIB_AROONOSC_2': {'signal_function': 'TALIB_AROONOSC', 'lookback': 66, 'budget': 0.25},
-
-            # 'TALIB_BOP_1': {'signal_function': 'TALIB_BOP', 'budget': 0.5},
-            'TALIB_CCI_1': {'signal_function': 'TALIB_CCI', 'budget': 0.5, 'lookback': 22},
-            'TALIB_CCI_2': {'signal_function': 'TALIB_CCI', 'budget': 0.5, 'lookback': 66},
-
+            'TALIB_CCI_1': {'signal_function': 'TALIB_CCI', 'lookback': 22, 'budget': 1},
         },
         'period': period,
-        'position': {'position_type': 'vol_adjusted', 'target_vol': 0.005, 'direction': 'long_only'},
-        'allocation': {'lookback': 365, 'type': 'max_utility', 'target_vol': 0.01,'optimize':False}
+        'position': {'position_type': 'vol_adjusted', 'target_vol': 0.01, 'direction': 'long_only'},
+        'allocation': {'lookback': 365, 'type': 'risk_parity', 'target_vol': 0.01, 'optimize': True},
+        'label': "TALIB_CCI_1"
     }
 
-    pm = PortfolioManager(config=pf_config)
+    pm = PortfolioManager(config=CCI_1)
     weights = pm.run_portfolio()

@@ -6,6 +6,9 @@ from typing import Dict, List
 
 from dateutil.relativedelta import relativedelta
 
+from data.NSEDataAccess import NSEMasterDataAccess
+from utils.config import YFINANCE_PRICES_PATH
+
 
 def get_sharpe_ratio(portfolio_returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 256,
                      annualized: bool = True, years_lookback: int = None):
@@ -39,8 +42,9 @@ def get_sharpe_tstat(portfolio_returns: pd.Series, risk_free_rate: float = 0.0, 
     :return: the sharpe tstat
     """
     sharpe_ratio = get_sharpe_ratio(portfolio_returns=portfolio_returns, risk_free_rate=risk_free_rate,
-                                    annualized=False,years_lookback=years_lookback)
-    std_error = np.sqrt((1 + (sharpe_ratio ** 2)*0.5) / len(portfolio_returns))
+                                    annualized=True,years_lookback=years_lookback)
+    no_of_years = len(portfolio_returns)/256
+    std_error = np.sqrt((1 + (sharpe_ratio ** 2)*0.5) / no_of_years)
     sharpe_tstat = sharpe_ratio / std_error
     return sharpe_tstat
 
@@ -214,6 +218,27 @@ def get_returns_by_year_month(portfolio_return: pd.Series):
     grouped_df = grouped_df[list(month_name_dict.values()) + ['Total Return']]
     grouped_df = grouped_df.sort_index(ascending=False)
     return grouped_df
+
+#WIP
+def get_risk_contribution(portfolio_weights:pd.DataFrame,cov_matrix_lookback:int,cov_matrix_type:str='ledoit_wolf'):
+    """
+
+    :param portfolio_weights: daily weights of each asset in the portfolio
+    :param cov_matrix_lookback: lookback to get the cov_matrix
+    :param cov_matrix_type: str that denotes wht type of cov matrix you want to calculate
+    :return: MCTR of each asset in the df daily
+    """
+    nse_data = NSEMasterDataAccess(YFINANCE_PRICES_PATH)
+    start_date = portfolio_weights.index.min() - relativedelta(days=cov_matrix_lookback)
+    end_date = portfolio_weights.index.max()
+    universe = list(portfolio_weights.columns)
+    prices = nse_data.get_prices_multiple_assets(symbol_list= universe,period=(start_date,end_date))
+    prices = prices[Columns.CLOSE.value]
+    # long_only_returns =
+    for dates, rows in portfolio_weights.iterrows():
+        weight_vector = portfolio_weights.loc[dates]
+
+
 
 if __name__ == "__main__":
     print('Hello')
