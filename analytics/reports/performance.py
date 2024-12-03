@@ -18,7 +18,7 @@ from portfolio_manager.portfolio_manager import PortfolioManager
 import quantstats as qs
 from utils.config import YFINANCE_PRICES_PATH
 from utils.pandas_utils import df_to_excel
-from utils.plotters import line_plot, combine_plot, multi_bar_plot
+from utils.plotters import line_plot, combine_plot, multi_bar_plot, plot_histogram
 from utils.portfolio_tearsheet_metrics import get_sharpe_ratio, get_sharpe_tstat, get_portfolio_volatility, \
     get_time_in_market, get_hit_ratio, get_cagr, get_sortino_ratio, get_drawdown, get_omega_ratio, get_var_cvar, \
     get_AM_GM, get_latest_return, get_returns_by_year_month, get_return_index, get_information_ratio
@@ -73,8 +73,8 @@ def generate_performance_tearsheet(portfolio_returns_dict: Dict, output_path: st
                                                           benchmark_returns=benchmark_return_df[
                                                               'portfolio_return'].copy())
                 var_dict.update({'Information Ratio': information_ratio,
-                                 'Skew': skew(return_df['portfolio_return']),
-                                 'Kurtosis': kurtosis(return_df['portfolio_return'])
+                                 'Skew': return_df['portfolio_return'].skew(),
+                                 'Kurtosis': return_df['portfolio_return'].kurt()
                                  })
 
                 for keys, values in var_dict.items():
@@ -109,6 +109,8 @@ def generate_performance_tearsheet(portfolio_returns_dict: Dict, output_path: st
                     yearly_return = yearly_return.sort_index()
                     plotting_dict[f'Yearly Return at {exec} {tc}'].append(yearly_return)
 
+                    plotting_dict[f'Histogram at {exec} {tc} {strat}'].append(return_df[['portfolio_return']])
+
     pop_stats_excel_dict = {}
     plot_data = {}
     for keys, pop_stats_df_list in output_dict.items():
@@ -124,6 +126,8 @@ def generate_performance_tearsheet(portfolio_returns_dict: Dict, output_path: st
             columns = set(list(plot_df.columns)) - {'year'}
             fig = multi_bar_plot(df=plot_df, x_column='year', y_column_list=list(columns), data_type='%Returns',
                                  title=keys)
+        elif keys.startswith('Histogram'):
+            fig = plot_histogram(df=plot_df, column_name='portfolio_return', title=keys)
         else:
             fig = line_plot(df=plot_df, column_list=list(plot_df.columns),
                             title=keys, data_type=keys, figsize=(10, 10))
@@ -193,7 +197,7 @@ if __name__ == '__main__':
         },
         'period': period,
         'position': {'position_type': 'vol_adjusted', 'target_vol': 0.01, 'direction': 'long_only'},
-        'allocation': {'lookback': 365, 'type': 'max_utility', 'target_vol': 0.01, 'optimize': False},
+        'allocation': {'lookback': 365, 'type': 'max_utility', 'target_vol': 0.01, 'optimize': True},
         'label': "TALIB_BOP_1"
     }
 
@@ -208,12 +212,13 @@ if __name__ == '__main__':
         'label': "HOLD_NIFTY"
     }
 
-    config_list = [CCI_1, CCI_2, CCI_3, AROONOSC_1, BOP_1, NIFTY_BAH]
+    config_list = [BOP_1]
     returns_dict = {}
     for config in config_list:
         pm = PortfolioManager(config=config)
         weights_dict = pm.run_portfolio()
-        returns_dict[config['label']] = backtest(weights=weights_dict['pre_optimization_weight'])
+        returns_dict[config['label']] = backtest(weights=weights_dict['pre_optimization_weight'],
+                                                 rebalance_frequency='M')
 
     generate_performance_tearsheet(portfolio_returns_dict=returns_dict,
                                    benchmark_strategy="HOLD_NIFTY",
