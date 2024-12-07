@@ -10,6 +10,25 @@ from data.NSEDataAccess import NSEMasterDataAccess
 from utils.config import YFINANCE_PRICES_PATH
 
 
+def get_rolling_return(portfolio_returns:pd.Series,lookback:int=66,benchmark:pd.Series=None):
+    """
+
+    :param portfolio_returns: a daily portfolio return series
+    :param lookback: lookback for rollin return
+    :param benchmark: benchmark series if any
+    :return: the rolling return series
+    """
+    if benchmark is not None:
+        excess_return_series = portfolio_returns - benchmark
+    else:
+        excess_return_series = portfolio_returns.copy()
+
+    log_returns = np.log(1 + excess_return_series)
+    return_index = np.exp(log_returns.cumsum())
+    rolling_return_series = (return_index - return_index.shift(lookback))/return_index.shift(lookback)
+    return rolling_return_series*100
+
+
 def get_sharpe_ratio(portfolio_returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 256,
                      annualized: bool = True, years_lookback: int = None):
     """

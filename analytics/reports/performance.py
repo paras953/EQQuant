@@ -21,7 +21,7 @@ from utils.pandas_utils import df_to_excel
 from utils.plotters import line_plot, combine_plot, multi_bar_plot, plot_histogram
 from utils.portfolio_tearsheet_metrics import get_sharpe_ratio, get_sharpe_tstat, get_portfolio_volatility, \
     get_time_in_market, get_hit_ratio, get_cagr, get_sortino_ratio, get_drawdown, get_omega_ratio, get_var_cvar, \
-    get_AM_GM, get_latest_return, get_returns_by_year_month, get_return_index, get_information_ratio
+    get_AM_GM, get_latest_return, get_returns_by_year_month, get_return_index, get_information_ratio, get_rolling_return
 
 # extend pandas functionality with metrics, etc.
 qs.extend_pandas()
@@ -108,6 +108,21 @@ def generate_performance_tearsheet(portfolio_returns_dict: Dict, output_path: st
                     yearly_return.columns = [strat]
                     yearly_return = yearly_return.sort_index()
                     plotting_dict[f'Yearly Return at {exec} {tc}'].append(yearly_return)
+
+                    plotting_dict[f'%Rolling 1M return at {exec} {tc} {strat}'].append(get_rolling_return(
+                        portfolio_returns=return_df['portfolio_return'].copy(), benchmark=benchmark_return_df[
+                            'portfolio_return'].copy(),lookback=22))
+                    plotting_dict[f'%Rolling 3M return at {exec} {tc} {strat}'].append(get_rolling_return(
+                        portfolio_returns=return_df['portfolio_return'].copy(), benchmark=benchmark_return_df[
+                            'portfolio_return'].copy(), lookback=66))
+                    plotting_dict[f'%Rolling 6M return at {exec} {tc} {strat}'].append(get_rolling_return(
+                        portfolio_returns=return_df['portfolio_return'].copy(), benchmark=benchmark_return_df[
+                            'portfolio_return'].copy(), lookback=128))
+                    plotting_dict[f'%Rolling 1Y return at {exec} {tc} {strat}'].append(get_rolling_return(
+                        portfolio_returns=return_df['portfolio_return'].copy(), benchmark=benchmark_return_df[
+                            'portfolio_return'].copy(), lookback=256))
+
+
 
                     plotting_dict[f'Histogram at {exec} {tc} {strat}'].append(return_df[['portfolio_return']])
 
@@ -197,7 +212,7 @@ if __name__ == '__main__':
         },
         'period': period,
         'position': {'position_type': 'vol_adjusted', 'target_vol': 0.01, 'direction': 'long_only'},
-        'allocation': {'lookback': 365, 'type': 'max_utility', 'target_vol': 0.01, 'optimize': True},
+        'allocation': {'lookback': 365, 'type': 'max_utility', 'target_vol': 0.01, 'optimize': False},
         'label': "TALIB_BOP_1"
     }
 
@@ -212,28 +227,28 @@ if __name__ == '__main__':
         'label': "HOLD_NIFTY"
     }
 
-    config_list = [BOP_1]
+    config_list = [BOP_1,NIFTY_BAH]
     returns_dict = {}
     for config in config_list:
         pm = PortfolioManager(config=config)
         weights_dict = pm.run_portfolio()
         returns_dict[config['label']] = backtest(weights=weights_dict['pre_optimization_weight'],
-                                                 rebalance_frequency='M')
+                                                 rebalance_frequency='D')
 
     generate_performance_tearsheet(portfolio_returns_dict=returns_dict,
                                    benchmark_strategy="HOLD_NIFTY",
                                    output_path=output_path,
                                    file_name=file_name)
-    prev = returns_dict['TALIB_CCI_1']['gross']['prev']['portfolio_return'].rename(
-        columns={'portfolio_return': 'executed_at_prev'})
-    open = returns_dict['TALIB_CCI_1']['gross']['open']['portfolio_return'].rename(
-        columns={'portfolio_return': 'executed_at_open'})
-    close = returns_dict['TALIB_CCI_1']['gross']['close']['portfolio_return'].rename(
-        columns={'portfolio_return': 'executed_at_close'})
-
-    benchmark = returns_dict['HOLD_NIFTY']['gross']['close']['portfolio_return'].rename(
-        columns={'portfolio_return': 'executed_at_close_benchmark'})
+    # prev = returns_dict['TALIB_CCI_1']['gross']['prev']['portfolio_return'].rename(
+    #     columns={'portfolio_return': 'executed_at_prev'})
+    # open = returns_dict['TALIB_CCI_1']['gross']['open']['portfolio_return'].rename(
+    #     columns={'portfolio_return': 'executed_at_open'})
+    # close = returns_dict['TALIB_CCI_1']['gross']['close']['portfolio_return'].rename(
+    #     columns={'portfolio_return': 'executed_at_close'})
     #
-    output_path = f'C:/Users/paras/PycharmProjects/EQQuant/res/performance/factor_performance/CCI1_{execution}_performance_v2.html'
-    report = qs.reports.html(returns=close['executed_at_close'], benchmark=benchmark['executed_at_close_benchmark'],
-                             output=output_path)
+    # benchmark = returns_dict['HOLD_NIFTY']['gross']['close']['portfolio_return'].rename(
+    #     columns={'portfolio_return': 'executed_at_close_benchmark'})
+    #
+    # output_path = f'C:/Users/paras/PycharmProjects/EQQuant/res/performance/factor_performance/CCI1_{execution}_performance_v2.html'
+    # report = qs.reports.html(returns=close['executed_at_close'], benchmark=benchmark['executed_at_close_benchmark'],
+    #                          output=output_path)
