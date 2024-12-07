@@ -10,7 +10,7 @@ from data.NSEDataAccess import NSEMasterDataAccess
 from utils.config import YFINANCE_PRICES_PATH
 
 
-def get_rolling_return(portfolio_returns:pd.Series,lookback:int=66,benchmark:pd.Series=None):
+def get_rolling_return(portfolio_returns: pd.Series, lookback: int = 66, benchmark: pd.Series = None):
     """
 
     :param portfolio_returns: a daily portfolio return series
@@ -25,8 +25,8 @@ def get_rolling_return(portfolio_returns:pd.Series,lookback:int=66,benchmark:pd.
 
     log_returns = np.log(1 + excess_return_series)
     return_index = np.exp(log_returns.cumsum())
-    rolling_return_series = (return_index - return_index.shift(lookback))/return_index.shift(lookback)
-    return rolling_return_series*100
+    rolling_return_series = (return_index - return_index.shift(lookback)) / return_index.shift(lookback)
+    return rolling_return_series * 100
 
 
 def get_sharpe_ratio(portfolio_returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 256,
@@ -61,9 +61,14 @@ def get_sharpe_tstat(portfolio_returns: pd.Series, risk_free_rate: float = 0.0, 
     :return: the sharpe tstat
     """
     sharpe_ratio = get_sharpe_ratio(portfolio_returns=portfolio_returns, risk_free_rate=risk_free_rate,
-                                    annualized=True,years_lookback=years_lookback)
-    no_of_years = len(portfolio_returns)/256
-    std_error = np.sqrt((1 + (sharpe_ratio ** 2)*0.5) / no_of_years)
+                                    annualized=True, years_lookback=years_lookback)
+    if years_lookback:
+        end_date = portfolio_returns.index.max()
+        start_date = end_date - relativedelta(years=years_lookback)
+        portfolio_returns = portfolio_returns.truncate(start_date, end_date)
+
+    no_of_years = len(portfolio_returns) / 256
+    std_error = np.sqrt((1 + (sharpe_ratio ** 2) * 0.5) / no_of_years)
     sharpe_tstat = sharpe_ratio / std_error
     return sharpe_tstat
 
@@ -75,7 +80,7 @@ def get_portfolio_volatility(portfolio_returns: pd.Series, periods_per_year: int
     :return: the annualized portfolio volatility
     """
     std_dev = portfolio_returns.std() * np.sqrt(periods_per_year)
-    return std_dev*100
+    return std_dev * 100
 
 
 def get_time_in_market(portfolio_returns: pd.Series):
@@ -84,7 +89,7 @@ def get_time_in_market(portfolio_returns: pd.Series):
     :return: % of days where the strategy was active
     """
     time_in_market = (portfolio_returns != 0).sum() / len(portfolio_returns)
-    return time_in_market*100
+    return time_in_market * 100
 
 
 def get_hit_ratio(portfolio_returns: pd.Series):
@@ -93,9 +98,9 @@ def get_hit_ratio(portfolio_returns: pd.Series):
     :return: out of the days where the strategy was active how many days the strategy was correct
     """
     active_ratio = get_time_in_market(portfolio_returns=portfolio_returns)
-    portfolio_success_rate = ((portfolio_returns > 0).sum() / len(portfolio_returns))*100
+    portfolio_success_rate = ((portfolio_returns > 0).sum() / len(portfolio_returns)) * 100
     hit_ratio = portfolio_success_rate / active_ratio
-    return hit_ratio*100
+    return hit_ratio * 100
 
 
 def get_return_index(portfolio_returns: pd.Series):
@@ -238,8 +243,10 @@ def get_returns_by_year_month(portfolio_return: pd.Series):
     grouped_df = grouped_df.sort_index(ascending=False)
     return grouped_df
 
-#WIP
-def get_risk_contribution(portfolio_weights:pd.DataFrame,cov_matrix_lookback:int,cov_matrix_type:str='ledoit_wolf'):
+
+# WIP
+def get_risk_contribution(portfolio_weights: pd.DataFrame, cov_matrix_lookback: int,
+                          cov_matrix_type: str = 'ledoit_wolf'):
     """
 
     :param portfolio_weights: daily weights of each asset in the portfolio
@@ -251,12 +258,11 @@ def get_risk_contribution(portfolio_weights:pd.DataFrame,cov_matrix_lookback:int
     start_date = portfolio_weights.index.min() - relativedelta(days=cov_matrix_lookback)
     end_date = portfolio_weights.index.max()
     universe = list(portfolio_weights.columns)
-    prices = nse_data.get_prices_multiple_assets(symbol_list= universe,period=(start_date,end_date))
+    prices = nse_data.get_prices_multiple_assets(symbol_list=universe, period=(start_date, end_date))
     prices = prices[Columns.CLOSE.value]
     # long_only_returns =
     for dates, rows in portfolio_weights.iterrows():
         weight_vector = portfolio_weights.loc[dates]
-
 
 
 if __name__ == "__main__":
