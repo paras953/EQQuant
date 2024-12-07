@@ -98,13 +98,13 @@ def get_post_performance_weights_daily_rebalance(weights: pd.DataFrame,
     portfolio_return_contribution_close_to_open = weights.shift() * prev_close_to_open_returns
     portfolio_returns_close_to_open = pd.DataFrame(portfolio_return_contribution_close_to_open.sum(axis=1))
     portfolio_returns_close_to_open.columns = ['portfolio_return']
-    next_day_bod_weights = weights.shift() * (1 + portfolio_return_contribution_close_to_open)
+    next_day_bod_weights = weights.shift() * (1 + prev_close_to_open_returns)
     next_day_bod_weights = next_day_bod_weights.div(1 + portfolio_returns_close_to_open['portfolio_return'], axis=0)
 
     portfolio_return_contribution_open_to_close = next_day_bod_weights * open_to_close_returns
     portfolio_returns_open_to_close = pd.DataFrame(portfolio_return_contribution_open_to_close.sum(axis=1))
     portfolio_returns_open_to_close.columns = ['portfolio_return']
-    next_day_eod_weights = next_day_bod_weights * (1 + portfolio_return_contribution_open_to_close)
+    next_day_eod_weights = next_day_bod_weights * (1 + open_to_close_returns)
     next_day_eod_weights = next_day_eod_weights.div(1 + portfolio_returns_open_to_close['portfolio_return'], axis=0)
 
     return {'next_day_bod': next_day_bod_weights, 'next_day_eod': next_day_eod_weights,
@@ -189,18 +189,18 @@ def get_post_performance_weights_by_rebalance_frequency(weights: pd.DataFrame,
 
         portfolio_return_contribution_prev_close_to_open = prev_day_weight_vector * prev_close_to_open_returns_vector
         portfolio_returns_prev_close_to_open = portfolio_return_contribution_prev_close_to_open.sum()
-        next_day_bod_weight_vector = prev_day_weight_vector * (1 + portfolio_return_contribution_prev_close_to_open) / (
+        next_day_bod_weight_vector = prev_day_weight_vector * (1 + prev_close_to_open_returns_vector) / (
                 1 + portfolio_returns_prev_close_to_open)
 
         portfolio_return_contribution_open_to_close = next_day_bod_weight_vector * open_to_close_returns_vector
         portfolio_returns_open_to_close = portfolio_return_contribution_open_to_close.sum()
-        next_day_eod_weight_vector = next_day_bod_weight_vector * (1 + portfolio_return_contribution_open_to_close) / (
+        next_day_eod_weight_vector = next_day_bod_weight_vector * (1 + open_to_close_returns_vector) / (
                 1 + portfolio_returns_open_to_close)
 
         portfolio_return_contribution_prev_close_to_close = prev_day_weight_vector_executed_at_same_day_close * close_to_close_returns_vector
         portfolio_returns_prev_close_to_close = portfolio_return_contribution_prev_close_to_close.sum()
         same_day_eod_weight_vector = prev_day_weight_vector_executed_at_same_day_close * (
-                1 + portfolio_return_contribution_prev_close_to_close) / (1 + portfolio_returns_prev_close_to_close)
+                1 + close_to_close_returns_vector) / (1 + portfolio_returns_prev_close_to_close)
 
         same_day_eod_weights.loc[dates, universe] = same_day_eod_weight_vector
         next_day_bod_weights.loc[dates, universe] = next_day_bod_weight_vector
